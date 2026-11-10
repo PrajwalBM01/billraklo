@@ -1,3 +1,4 @@
+import { prisma } from "@billraklo/core";
 import crypto from "node:crypto";
 
 export async function verfiyMetaSignature(
@@ -20,4 +21,18 @@ export async function verfiyMetaSignature(
   const a = Buffer.from(header);
   const b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+export async function isPhNoAllowed(number: string) {
+  if (!number) return false;
+
+  const existing = await prisma.client.findUnique({
+    where: { whatsappPhone: number },
+  });
+
+  if (existing) {
+    return true;
+  } else {
+    return false;
+  }
 }

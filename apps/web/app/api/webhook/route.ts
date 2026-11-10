@@ -1,6 +1,6 @@
-import { verfiyMetaSignature } from "@/lib/webhook";
+import { isPhNoAllowed, verfiyMetaSignature } from "@/lib/webhook";
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "node:crypto";
+import { recordWelcomeStatus, sendText } from "@billraklo/core";
 
 // 1. Verify webhook with Meta
 export async function GET(request: NextRequest) {
@@ -32,13 +32,13 @@ export async function POST(request: NextRequest) {
     const header = request.headers.get("x-hub-signature-256") || "";
 
     //verify
-    const result = await verfiyMetaSignature(
+    const verifyed = await verfiyMetaSignature(
       rawBody,
       header,
       process.env.APP_SECRET!,
     );
 
-    if (!result) {
+    if (!verifyed) {
       console.warn("Rejected webhook with invalid signature");
       return NextResponse.json(
         { success: false },
@@ -48,12 +48,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("verfied");
-
     //parse the incoming event
     const bodyString = rawBody.toString("utf-8");
-    const body = JSON.parse(bodyString);
-    console.log("Webhook received:", body, bodyString);
+    const body = JSON.parse(bodyString) as WebhookBody;
+
+    //filer only messages and ignore the status(sent, recived, viewed)
+    const changes = body.entry?.flatMap((entry) => entry.changes || []) || [];
+
+    for (const change of changes) {
+      // Delivery updates for messages we sent (sent, delivered, read, failed).
+      // Never reply to these: each reply would trigger more of them.
+      for (const status of change.value?.statuses || []) {
+        try {
+          await recordWelcomeStatus(status.id, status.status, {
+            code: status.errors?.[0]?.code,
+            details: status.errors?.[0]?.error_data?.details,
+          });
+        } catch (error) {
+          console.error("Couldn't record message status:", error);
+        }
+      }
+
+      const messages = change.value?.messages || [];
+
+      for (const message of messages) {
+        const from = message.from;
+        const text = message.text?.body;
+
+        if (!from || !text) {
+          console.log("Non-text message received:", message.type);
+          continue;
+        }
+
+        console.log(`${from}: ${text}`);
+
+        //is phone number allowed
+        const allowed = await isPhNoAllowed(from);
+
+        if (!allowed) {
+          console.error("Phone number not in clients list");
+          continue;
+        }
+
+        try {
+          await sendText(from, "recived");
+        } catch (error) {
+          console.error("Couldn't reply:", error);
+        }
+      }
+    }
+    console.log("Webhook received:", bodyString);
+
     // Acknowledge Meta
     return NextResponse.json(
       { success: true },
@@ -64,12 +109,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Webhook error:", error);
 
-
-
-//understand the system design behind otp login and create it
-
-
-
     return NextResponse.json(
       { error: "Webhook processing failed" },
       { status: 500 },
@@ -77,66 +116,24 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// 4. Process incoming messages
-async function handleIncomingMessage(body: any) {
-  const changes =
-    body.entry?.flatMap((entry: any) => entry.changes || []) || [];
+// The parts of Meta's webhook payload this route reads.
+// https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks
+type WebhookMessage = {
+  from?: string;
+  type?: string;
+  text?: { body?: string };
+};
 
-  for (const change of changes) {
-    const messages = change.value?.messages || [];
+type WebhookStatus = {
+  id: string;
+  status: string;
+  errors?: { code?: number; error_data?: { details?: string } }[];
+};
 
-    for (const message of messages) {
-      const from = message.from;
-      const text = message.text?.body;
-
-      if (!from || !text) {
-        console.log("Non-text message received:", message.type);
-        continue;
-      }
-
-      console.log(`${from}: ${text}`);
-
-      await sendMessage(from, `You said: ${text}`);
-    }
-  }
-}
-
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
-const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION;
-
-export async function sendMessage(to: string, message: string) {
-  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID || !GRAPH_API_VERSION) {
-    throw new Error("Missing WhatsApp environment variables");
-  }
-
-  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${PHONE_NUMBER_ID}/messages`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to,
-      type: "text",
-      text: {
-        preview_url: false,
-        body: message,
-      },
-    }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`WhatsApp API error: ${JSON.stringify(data)}`);
-  }
-
-  console.log("Message sent:", data);
-
-  return data;
-}
+type WebhookBody = {
+  entry?: {
+    changes?: {
+      value?: { messages?: WebhookMessage[]; statuses?: WebhookStatus[] };
+    }[];
+  }[];
+};
