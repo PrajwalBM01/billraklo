@@ -3,8 +3,10 @@ packages:
   - "packages/*"
 
 allowBuilds:
+  '@prisma/engines': true
   esbuild: true
+  prisma: true
 
 catalog:
   typescript: "^7.0.2"
-  "@types/node": "^26.6.6"
+  '@types/node': "^26.6.6"
