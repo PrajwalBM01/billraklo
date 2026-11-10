@@ -1,1 +1,4 @@
-export const hello = (from: string) => `Hello from core, imported by ${from}`;
+import { prisma } from "./db";
+
+
+export { prisma };
