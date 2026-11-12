@@ -37,13 +37,21 @@ model Bill {
   id         String   @id @default(cuid())
   clientId   String
   client     Client   @relation(fields: [clientId], references: [id])
-  fileKey    String
-  fileHash   String
-  mimeType   String
+  waMediaId   String
+  mimeType String
+  fileKey    String?
+  fileHash   String?
+  error String?
   status     String   @default("received")
   receivedAt DateTime @default(now())
 
   @@unique([clientId, fileHash])
+   @@index([status, receivedAt])
+}
+
+model WaMessage {
+  id String @id
+  receviedAt DateTime @default(now())
 }
 
 model User {

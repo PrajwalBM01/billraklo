@@ -3,13 +3,7 @@ import { env } from "./env";
 const baseURL = `https://graph.facebook.com/${env.GRAPH_API_VERSION}/${env.PHONE_NUMBER_ID}/messages`;
 
 export async function sendText(to: string, body: string) {
-  if (!env.WHATSAPP_TOKEN || !env.PHONE_NUMBER_ID || !env.GRAPH_API_VERSION) {
-    throw new Error("Missing WhatsApp environment variables");
-  }
-
-  const url = `https://graph.facebook.com/${env.GRAPH_API_VERSION}/${env.PHONE_NUMBER_ID}/messages`;
-
-  const response = await fetch(url, {
+  const response = await fetch(baseURL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
