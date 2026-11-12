@@ -31,7 +31,7 @@ export async function isPhNoAllowed(number: string) {
   });
 
   if (existing) {
-    return true;
+    return existing;
   } else {
     return false;
   }

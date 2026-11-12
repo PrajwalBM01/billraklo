@@ -5,8 +5,11 @@ packages:
 allowBuilds:
   '@prisma/engines': true
   esbuild: true
+  msgpackr-extract: true
   prisma: true
 
 catalog:
   typescript: "^7.0.2"
   '@types/node': "^26.6.6"
+  bullmq: "^6.7.4"
+  ioredis: "^6.0.0"

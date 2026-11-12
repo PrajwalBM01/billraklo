@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 const envSchema = z.object({
@@ -17,6 +16,8 @@ const envSchema = z.object({
   // within 24 hours of the client messaging us).
   WHATSAPP_WELCOME_TEMPLATE: z.string().min(1).default("client_welcome"),
   WHATSAPP_WELCOME_TEMPLATE_LANG: z.string().min(1).default("en"),
+
+  REDIS_URL: z.string().min(1),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
@@ -24,12 +25,10 @@ const parsedEnv = envSchema.safeParse(process.env);
 if (!parsedEnv.success) {
   console.error("❌ Invalid environment variables:");
 
-  console.error(
-    z.treeifyError(parsedEnv.error)
-  );
+  console.error(z.treeifyError(parsedEnv.error));
 
   throw new Error(
-    "Missing or invalid environment variables. Check your .env.local file."
+    "Missing or invalid environment variables. Check your .env.local file.",
   );
 }
 

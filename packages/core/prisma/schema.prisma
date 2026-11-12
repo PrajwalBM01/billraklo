@@ -50,7 +50,7 @@ model Bill {
 }
 
 model WaMessage {
-  id String @id
+  id String @id @unique
   receviedAt DateTime @default(now())
 }
 
