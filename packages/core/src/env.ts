@@ -1,4 +1,14 @@
+import dotenv from "dotenv";
 import { z } from "zod";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Always load packages/core/.env relative to this file
+const currentDir = dirname(fileURLToPath(import.meta.url));
+
+dotenv.config({
+  path: resolve(currentDir, "../.env"),
+});
 
 const envSchema = z.object({
   // Database
@@ -17,8 +27,9 @@ const envSchema = z.object({
   WHATSAPP_WELCOME_TEMPLATE: z.string().min(1).default("client_welcome"),
   WHATSAPP_WELCOME_TEMPLATE_LANG: z.string().min(1).default("en"),
 
-  REDIS_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1, "REDIS_URL required"),
 });
+
 
 const parsedEnv = envSchema.safeParse(process.env);
 

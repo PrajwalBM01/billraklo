@@ -20,4 +20,4 @@ export {
   type ClientField,
 } from "./clients";
 
-export { getBillQueue } from "./queue";
+export { getBillQueue, BILLS_QUEUE, type BillJob,redis  } from "./queue";

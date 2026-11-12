@@ -13,6 +13,7 @@
     "@types/node": "catalog:",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
     "typescript": "catalog:"
   },
   "dependencies": {

@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
           const bill = await prisma.bill.create({
             data: {
               clientId: client.id,
-              mimeType: message.document?.mime_type!,
-              waMediaId: message.document?.id!,
+              mimeType: message.image?.mime_type!,
+              waMediaId: message.image?.id!,
             },
           });
 
@@ -184,6 +184,7 @@ type WebhookMessage = {
   type?: string;
   text?: { body?: string };
   document?: { mime_type: string; id: string };
+  image?: { mime_type: string; id: string };
 };
 
 type WebhookStatus = {

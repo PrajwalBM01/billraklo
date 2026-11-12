@@ -259,6 +259,12 @@ importers:
       '@billraklo/core':
         specifier: workspace:*
         version: link:../../packages/core
+      bullmq:
+        specifier: 'catalog:'
+        version: 6.7.4(ioredis@6.0.0)
+      dotenv:
+        specifier: ^18.0.10
+        version: 18.0.10
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -303,6 +309,9 @@ importers:
       prisma:
         specifier: ^7.10.1
         version: 7.10.1(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
+      tsx:
+        specifier: ^4.23.15
+        version: 4.23.15
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
@@ -5582,7 +5591,7 @@ snapshots:
       semver: 7.8.6
       tslib: 2.9.1
     optionalDependencies:
-      ioredis: 6.0.0
+      ioredis: 6.0.0(supports-color@7.2.0)
 
   bundle-name@4.1.1:
     dependencies:
@@ -6520,6 +6529,18 @@ snapshots:
       standard-as-callback: 2.1.0
     transitivePeerDependencies:
       - supports-color
+
+  ioredis@6.0.0(supports-color@7.2.0):
+    dependencies:
+      '@ioredis/commands': 2.0.0
+      cluster-key-slot: 1.1.1
+      debug: 4.4.3(supports-color@7.2.0)
+      denque: 2.1.0
+      redis-errors: 1.2.0
+      standard-as-callback: 2.1.0
+    transitivePeerDependencies:
+      - supports-color
+    optional: true
 
   ip-address@10.7.6: {}
 
