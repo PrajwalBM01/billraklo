@@ -120,19 +120,12 @@ export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
         },
       });
 
-      const filedata = await downloadMedia(bill.waMediaId);
-      await uploadToSupabase(
-        "billraklo",
-        bill.id,
-        filedata.bytes,
-        filedata.mimeType!,
-      );
 
-      // await getBillQueue().add(
-      //   "process",
-      //   { billId: bill.id },
-      //   { jobId: bill.id },
-      // );
+      await getBillQueue().add(
+        "process",
+        { billId: bill.id },
+        { jobId: bill.id },
+      );
 
       await sendText(message.from, "Received ✅ Reading your bill…");
     } catch (error) {
