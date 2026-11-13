@@ -4,7 +4,7 @@ import { Worker } from "bullmq";
 
 const bills = new Worker<BillJob>(
   BILLS_QUEUE,
-  async (job) => console.log("jobsss", job),
+  async (job) => console.log("jobsss", job.data),
   {
     connection: redis(),
     concurrency: 5,

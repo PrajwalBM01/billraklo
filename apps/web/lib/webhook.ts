@@ -1,4 +1,4 @@
-import { getBillQueue, prisma, sendText } from "@billraklo/core";
+import { downloadMedia, getBillQueue, prisma, sendText } from "@billraklo/core";
 import crypto from "node:crypto";
 import {
   WhatsAppIncomingMessage,
@@ -114,11 +114,13 @@ export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
         },
       });
 
-      await getBillQueue().add(
-        "process",
-        { billId: bill.id },
-        { jobId: bill.id },
-      );
+      await downloadMedia(bill.waMediaId);
+
+      // await getBillQueue().add(
+      //   "process",
+      //   { billId: bill.id },
+      //   { jobId: bill.id },
+      // );
 
       await sendText(message.from, "Received ✅ Reading your bill…");
     } catch (error) {

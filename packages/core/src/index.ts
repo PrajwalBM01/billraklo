@@ -6,6 +6,7 @@ export {
   sendTemplate,
   describeWhatsAppError,
   type WhatsAppSendResult,
+  downloadMedia,
 } from "./whatsapp";
 export { normalizeIndianMobile, formatIndianMobile } from "./phone";
 export {
@@ -20,4 +21,4 @@ export {
   type ClientField,
 } from "./clients";
 
-export { getBillQueue, BILLS_QUEUE, type BillJob,redis  } from "./queue";
+export { getBillQueue, BILLS_QUEUE, type BillJob, redis } from "./queue";
