@@ -1,5 +1,9 @@
-import { prisma } from "@billraklo/core";
+import { getBillQueue, prisma, sendText } from "@billraklo/core";
 import crypto from "node:crypto";
+import {
+  WhatsAppIncomingMessage,
+  WhatsAppWebhookPayload,
+} from "./webhook-types";
 
 export async function verfiyMetaSignature(
   rawBody: Buffer<ArrayBuffer>,
@@ -23,7 +27,7 @@ export async function verfiyMetaSignature(
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-export async function isPhNoAllowed(number: string) {
+async function isPhNoAllowed(number: string) {
   if (!number) return false;
 
   const existing = await prisma.client.findUnique({
@@ -34,5 +38,91 @@ export async function isPhNoAllowed(number: string) {
     return existing;
   } else {
     return false;
+  }
+}
+
+export async function isMessageProcessed(body: WhatsAppWebhookPayload) {
+  let processed = false;
+  for (const change of body.entry[0].changes ?? []) {
+    if (change.field == "messages") {
+      let id: string | undefined;
+      if (change.value.messages) {
+        id = change.value.messages[0].id;
+      }
+
+      if (change.value.statuses) {
+        const status = change.value.statuses[0];
+        id = `${status.id}_${status.status}_${status.timestamp}`;
+      }
+
+      if (!id) {
+        continue;
+      }
+
+      try {
+        await prisma.waMessage.create({
+          data: {
+            id: id,
+          },
+        });
+      } catch (error: any) {
+        if ((error.code = "P2002")) {
+          console.log("duplicate webhook");
+          processed = true;
+        }
+      }
+    }
+  }
+  return processed;
+}
+
+export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
+  for (const message of messages) {
+    //check phone number is registred as client and is allowed
+    const client = await isPhNoAllowed(message.from);
+    if (!client) {
+      console.error("Phone number is not allowed", message.from);
+      continue;
+    }
+
+    //message is not image or doc, send not allowed
+    if (
+      !(
+        message.type === "image" ||
+        (message.type === "document" &&
+          message.document.mime_type === "application/pdf")
+      )
+    ) {
+      await sendText(
+        message.from,
+        "Please send only Image or PDF invoices and bills.",
+      );
+      continue;
+    }
+
+    //store half bill in bill table and add to queue
+    try {
+      const bill = await prisma.bill.create({
+        data: {
+          clientId: client.id,
+          mimeType:
+            message.type === "image"
+              ? message.image.mime_type
+              : message.document.mime_type,
+          waMediaId:
+            message.type === "image" ? message.image.id : message.document.id,
+        },
+      });
+
+      await getBillQueue().add(
+        "process",
+        { billId: bill.id },
+        { jobId: bill.id },
+      );
+
+      await sendText(message.from, "Received ✅ Reading your bill…");
+    } catch (error) {
+      console.error("Couldn't process message:", error);
+    }
   }
 }

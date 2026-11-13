@@ -73,9 +73,9 @@ export async function sendTemplate(
         to,
         type: "template",
         template: {
-          name: "hello_world",
-          language: { code: "en_US"},
-        //   ...(parameters.length && { components: [{ type: "body", parameters }] }),
+          name: "client_welcome",
+          language: { code: "en"},
+          ...(parameters.length && { components: [{ type: "body", parameters }] }),
         },
       }),
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
