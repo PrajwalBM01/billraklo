@@ -22,3 +22,4 @@ export {
 } from "./clients";
 
 export { getBillQueue, BILLS_QUEUE, type BillJob, redis } from "./queue";
+export {uploadToSupabase} from "./storage"

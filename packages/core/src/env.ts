@@ -28,8 +28,13 @@ const envSchema = z.object({
   WHATSAPP_WELCOME_TEMPLATE_LANG: z.string().min(1).default("en"),
 
   REDIS_URL: z.string().min(1, "REDIS_URL required"),
-});
 
+  //supabase s3
+  SUPABASE_REGION: z.string().min(1),
+  SUPABASE_ENDPOINT: z.string().min(1),
+  SUPABASE_ACCESS_KEY_ID: z.string().min(1),
+  SUPABASE_SECRET_ACCESS_KEY: z.string().min(1),
+});
 
 const parsedEnv = envSchema.safeParse(process.env);
 

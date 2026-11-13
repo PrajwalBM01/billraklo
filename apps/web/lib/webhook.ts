@@ -1,4 +1,10 @@
-import { downloadMedia, getBillQueue, prisma, sendText } from "@billraklo/core";
+import {
+  downloadMedia,
+  getBillQueue,
+  prisma,
+  sendText,
+  uploadToSupabase,
+} from "@billraklo/core";
 import crypto from "node:crypto";
 import {
   WhatsAppIncomingMessage,
@@ -114,7 +120,13 @@ export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
         },
       });
 
-      await downloadMedia(bill.waMediaId);
+      const filedata = await downloadMedia(bill.waMediaId);
+      await uploadToSupabase(
+        "billraklo",
+        bill.id,
+        filedata.bytes,
+        filedata.mimeType!,
+      );
 
       // await getBillQueue().add(
       //   "process",
