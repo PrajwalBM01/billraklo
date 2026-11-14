@@ -21,5 +21,12 @@ export {
   type ClientField,
 } from "./clients";
 
-export { getBillQueue, BILLS_QUEUE, type BillJob, redis } from "./queue";
-export {uploadToSupabase} from "./storage"
+export {
+  getBillQueue,
+  BILLS_QUEUE,
+  type BillJob,
+  redis,
+  getMaintenanceQueue,
+  MAINTENANCE_QUEUE,
+} from "./queue";
+export { uploadToSupabase } from "./storage";

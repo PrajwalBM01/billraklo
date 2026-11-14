@@ -4,9 +4,12 @@ import {
   BILLS_QUEUE,
   prisma,
   sendText,
+  getMaintenanceQueue,
+  MAINTENANCE_QUEUE,
 } from "@billraklo/core";
 import { Worker } from "bullmq";
 import { processBill } from "./jobs/process-bill";
+import { sweepStuckBills } from "./jobs/sweep";
 
 const bills = new Worker<BillJob>(
   BILLS_QUEUE,
@@ -42,10 +45,21 @@ bills.on("failed", async (job, err) => {
   }
 });
 
+const maintenance = new Worker(MAINTENANCE_QUEUE, () => sweepStuckBills(), {
+  connection: redis(),
+});
+
+// Run the sweep every 5 minutes. On restart this updates the schedule instead of duplicating it.
+await getMaintenanceQueue().upsertJobScheduler(
+  "sweep-stuck-bills",
+  { every: 5 * 60 * 1000 },
+  { name: "sweep" },
+);
+
 console.log("Worker started, waiting for jobs…");
 
 async function shutdown() {
-  await Promise.all([bills.close()]); // finish running jobs first
+  await Promise.all([bills.close(), maintenance.close()]); // finish running jobs first
   process.exit(0);
 }
 process.on("SIGTERM", shutdown);
