@@ -15,13 +15,20 @@ datasource db {
 
 
 model Client {
-  id            String @id @default(cuid())
+  id            String   @id @default(cuid())
   userId        String
-  user          User   @relation(fields: [userId], references: [id])
+  user          User     @relation(fields: [userId], references: [id])
   legalName     String
   gstin         String
-  whatsappPhone String @unique
+  whatsappPhone String   @unique
+  createdAt     DateTime @default(now())
   bills         Bill[]
+
+  // WhatsApp welcome message: pending | sent | delivered | read | failed
+  welcomeStatus    String    @default("pending")
+  welcomeMessageId String?   @unique
+  welcomeError     String?
+  welcomeSentAt    DateTime?
 
   @@index([userId])
 }
@@ -30,13 +37,21 @@ model Bill {
   id         String   @id @default(cuid())
   clientId   String
   client     Client   @relation(fields: [clientId], references: [id])
-  fileKey    String
-  fileHash   String
-  mimeType   String
+  waMediaId   String
+  mimeType String
+  fileKey    String?
+  fileHash   String?
+  error String?
   status     String   @default("received")
   receivedAt DateTime @default(now())
 
   @@unique([clientId, fileHash])
+   @@index([status, receivedAt])
+}
+
+model WaMessage {
+  id String @id @unique
+  receviedAt DateTime @default(now())
 }
 
 model User {

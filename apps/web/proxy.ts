@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 import { auth } from "@/lib/auth";
 
-const protectedPrefixes = ["/dashboard", "/account"];
+const protectedPrefixes = ["/dashboard", "/clients", "/account"];
 // Signed-in users skip these and go straight to the dashboard.
 const guestOnlyPaths = ["/", "/sign-in", "/sign-up"];
 
@@ -33,5 +33,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/dashboard/:path*", "/account/:path*", "/sign-in", "/sign-up"],
+  matcher: ["/", "/dashboard/:path*", "/clients/:path*", "/account/:path*", "/sign-in", "/sign-up"],
 };
