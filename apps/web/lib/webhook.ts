@@ -53,7 +53,7 @@ export async function isMessageProcessed(body: WhatsAppWebhookPayload) {
     if (change.field == "messages") {
       let id: string | undefined;
       if (change.value.messages) {
-        id = change.value.messages[0].id;
+        id = change.value.messages[0]?.id;
       }
 
       if (change.value.statuses) {
@@ -92,17 +92,17 @@ export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
     }
 
     //message is not image or doc, send not allowed
-    if (
-      !(
-        message.type === "image" ||
-        (message.type === "document" &&
-          message.document.mime_type === "application/pdf")
-      )
-    ) {
-      await sendText(
-        message.from,
-        "Please send only Image or PDF invoices and bills.",
-      );
+    const mediaInfo =
+      "image" in message
+        ? message.image
+        : "document" in message &&
+            message.document.mime_type === "application/pdf"
+          ? message.document
+          : undefined;
+
+    if (!mediaInfo) {
+      // text, sticker, audio, non-PDF document, anything else →
+      await sendText(message.from, "Please send only Image or PDF invoices.");
       continue;
     }
 
@@ -111,15 +111,10 @@ export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
       const bill = await prisma.bill.create({
         data: {
           clientId: client.id,
-          mimeType:
-            message.type === "image"
-              ? message.image.mime_type
-              : message.document.mime_type,
-          waMediaId:
-            message.type === "image" ? message.image.id : message.document.id,
+          mimeType: mediaInfo.mime_type,
+          waMediaId: mediaInfo.id,
         },
       });
-
 
       await getBillQueue().add(
         "process",

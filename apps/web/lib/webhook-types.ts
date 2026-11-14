@@ -66,10 +66,11 @@ export const DocumentMessageSchema = BaseMessageSchema.extend({
   }),
 });
 
-export const IncomingMessageSchema = z.discriminatedUnion("type", [
+export const IncomingMessageSchema = z.union([
   TextMessageSchema,
   ImageMessageSchema,
   DocumentMessageSchema,
+  BaseMessageSchema,
 ]);
 
 //status messages
