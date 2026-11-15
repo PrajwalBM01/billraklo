@@ -287,6 +287,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.1167.0
         version: 3.1167.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: ^3.1169.0
+        version: 3.1169.0
       '@prisma/adapter-neon':
         specifier: ^7.10.1
         version: 7.10.1
@@ -295,7 +298,7 @@ importers:
         version: 7.10.1(prisma@7.10.1(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2))(typescript@7.0.2)
       bullmq:
         specifier: 'catalog:'
-        version: 6.7.4(ioredis@6.0.0)
+        version: 6.7.4(ioredis@6.0.0(supports-color@7.2.0))
       dotenv:
         specifier: ^18.0.10
         version: 18.0.10
@@ -378,6 +381,10 @@ packages:
 
   '@aws-sdk/nested-clients@3.998.3':
     resolution: {integrity: sha512-acHTTzMB13CU6dU4sxABYExMI3PQM2zStWH2MiUwJp/7QKTrLg2f7mbzSXoegW2kYOk2tdqQYagsZrWB8Xv7eA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/s3-request-presigner@3.1169.0':
+    resolution: {integrity: sha512-ydc+uJnL8s1rMyPgEWjjiV6C/UFqrQhsAHOhEW5GerQtB0zpgpENupEY3AeeXunWxdQakdDLrNJetimZ0wbhRw==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/signature-v4-multi-region@3.996.52':
@@ -4304,6 +4311,15 @@ snapshots:
       '@smithy/types': 4.20.0
       tslib: 2.9.1
 
+  '@aws-sdk/s3-request-presigner@3.1169.0':
+    dependencies:
+      '@aws-sdk/core': 3.981.0
+      '@aws-sdk/signature-v4-multi-region': 3.996.52
+      '@aws-sdk/types': 3.975.1
+      '@smithy/core': 3.40.0
+      '@smithy/types': 4.20.0
+      tslib: 2.9.1
+
   '@aws-sdk/signature-v4-multi-region@3.996.52':
     dependencies:
       '@aws-sdk/types': 3.975.1
@@ -5887,6 +5903,16 @@ snapshots:
       electron-to-chromium: 1.5.478
       node-releases: 2.0.63
       update-browserslist-db: 1.3.4(browserslist@4.29.5)
+
+  bullmq@6.7.4(ioredis@6.0.0(supports-color@7.2.0)):
+    dependencies:
+      cron-parser: 5.10.4
+      msgpackr: 2.1.4
+      node-abort-controller: 3.1.1
+      semver: 7.8.6
+      tslib: 2.9.1
+    optionalDependencies:
+      ioredis: 6.0.0(supports-color@7.2.0)
 
   bullmq@6.7.4(ioredis@6.0.0):
     dependencies:

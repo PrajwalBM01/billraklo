@@ -30,6 +30,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1, "REDIS_URL required"),
 
   //supabase s3
+  SUPABASE_BUCKET: z.string().min(1, "SUPABASE_BUCKET is required"),
   SUPABASE_REGION: z.string().min(1),
   SUPABASE_ENDPOINT: z.string().min(1),
   SUPABASE_ACCESS_KEY_ID: z.string().min(1),

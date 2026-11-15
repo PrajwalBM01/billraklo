@@ -5,6 +5,7 @@ const FileDownloadSchema = z.object({
   id: z.string(),
   url: z.string(),
   mime_type: z.string(),
+  file_size: z.number().optional(), // hinted before we spend time downloading
 });
 
 const baseURL = `https://graph.facebook.com/${env.GRAPH_API_VERSION}/${env.PHONE_NUMBER_ID}/messages`;
@@ -37,30 +38,98 @@ export async function sendText(to: string, body: string) {
   console.log("Message sent:", data);
 }
 
+export const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
+
+/** Media problems we can describe to a user: what failed, whether retrying could help. */
+export class WhatsAppMediaError extends Error {
+  constructor(
+    message: string,
+    readonly mediaId: string,
+    readonly httpStatus: number | null,
+    /** false = retrying will not help (404/410/too big/unsupported) */
+    readonly retryable: boolean,
+  ) {
+    super(message);
+    this.name = "WhatsAppMediaError";
+  }
+}
+
 export async function downloadMedia(mediaId: string) {
-  const meta = await fetch(
+  const metaRes = await fetch(
     `https://graph.facebook.com/${env.GRAPH_API_VERSION}/${mediaId}`,
     {
-      headers: {
-        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${env.WHATSAPP_TOKEN}` },
+      signal: AbortSignal.timeout(15_000),
     },
   );
 
-  const data = await meta.json();
-  const parsedData = FileDownloadSchema.safeParse(data);
+  if (!metaRes.ok) {
+    const retryable = metaRes.status >= 500 || metaRes.status === 429;
+    throw new WhatsAppMediaError(
+      `WhatsApp media lookup failed (HTTP ${metaRes.status}) for media ${mediaId}`,
+      mediaId,
+      metaRes.status,
+      retryable,
+    );
+  }
 
-  //download it
-  const fileResponse = await fetch(parsedData.data?.url!, {
-    headers: {
-      Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
-    },
+  const parsed = FileDownloadSchema.safeParse(await metaRes.json());
+  if (!parsed.success) {
+    throw new WhatsAppMediaError(
+      `WhatsApp returned an unexpected media payload for media ${mediaId}`,
+      mediaId,
+      null,
+      false,
+    );
+  }
+
+  const meta = parsed.data;
+
+  // Reject oversize from metadata: never download 90 MB three times.
+  if (meta.file_size != null && meta.file_size > MAX_MEDIA_BYTES) {
+    throw new WhatsAppMediaError(
+      `File too large (${(meta.file_size / 1e6).toFixed(1)} MB, max ${MAX_MEDIA_BYTES / 1e6} MB) for media ${mediaId}`,
+      mediaId,
+      null,
+      false,
+    );
+  }
+
+  const fileRes = await fetch(meta.url, {
+    headers: { Authorization: `Bearer ${env.WHATSAPP_TOKEN}` },
+    signal: AbortSignal.timeout(60_000),
   });
-  return {
-    bytes: Buffer.from(await fileResponse.arrayBuffer()),
-    mimeType: parsedData.data?.mime_type,
-  };
+
+  if (!fileRes.ok) {
+    const retryable = fileRes.status >= 500 || fileRes.status === 429;
+    throw new WhatsAppMediaError(
+      `WhatsApp media download failed (HTTP ${fileRes.status}) for media ${mediaId}`,
+      mediaId,
+      fileRes.status,
+      retryable,
+    );
+  }
+
+  const bytes = Buffer.from(await fileRes.arrayBuffer());
+
+  if (bytes.length === 0) {
+    throw new WhatsAppMediaError(
+      `WhatsApp returned an empty file for media ${mediaId}`,
+      mediaId,
+      null,
+      false,
+    );
+  }
+  if (bytes.length > MAX_MEDIA_BYTES) {
+    throw new WhatsAppMediaError(
+      `File too large (${(bytes.length / 1e6).toFixed(1)} MB) for media ${mediaId}`,
+      mediaId,
+      null,
+      false,
+    );
+  }
+
+  return { bytes, mimeType: meta.mime_type };
 }
 
 export type WhatsAppSendResult =

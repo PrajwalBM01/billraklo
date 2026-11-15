@@ -1,9 +1,8 @@
 import {
-  downloadMedia,
   getBillQueue,
+  isUniqueViolation,
   prisma,
   sendText,
-  uploadToSupabase,
 } from "@billraklo/core";
 import crypto from "node:crypto";
 import {
@@ -72,10 +71,12 @@ export async function isMessageProcessed(body: WhatsAppWebhookPayload) {
           },
         });
       } catch (error: any) {
-        if ((error.code = "P2002")) {
-          console.log("duplicate webhook");
+        if (isUniqueViolation(error)) {
+          console.log("duplicate webhook", id);
           processed = true;
+          continue;
         }
+        throw error;
       }
     }
   }

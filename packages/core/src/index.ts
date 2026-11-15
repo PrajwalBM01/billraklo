@@ -3,10 +3,12 @@ import { sendText } from "./whatsapp";
 
 export { prisma, sendText };
 export {
+  downloadMedia,
+  MAX_MEDIA_BYTES,
+  WhatsAppMediaError,
   sendTemplate,
   describeWhatsAppError,
   type WhatsAppSendResult,
-  downloadMedia,
 } from "./whatsapp";
 export { normalizeIndianMobile, formatIndianMobile } from "./phone";
 export {
@@ -29,4 +31,7 @@ export {
   getMaintenanceQueue,
   MAINTENANCE_QUEUE,
 } from "./queue";
-export { uploadToSupabase } from "./storage";
+export { putObject, getObject, signedUrl } from "./storage";
+
+export { isUniqueViolation, isPrismaError } from "./prisma-error";
+

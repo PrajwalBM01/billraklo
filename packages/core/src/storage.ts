@@ -1,5 +1,10 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { env } from "./env";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 env;
 
 export const s3 = new S3Client({
@@ -12,23 +17,35 @@ export const s3 = new S3Client({
   },
 });
 
-export async function uploadToSupabase(
-  bucketName: string,
-  fileName: string,
-  fileBuffer: Buffer,
-  mimeType: string,
+export async function putObject(
+  key: string,
+  body: Buffer,
+  contentType: string,
 ) {
-  const command = new PutObjectCommand({
-    Bucket: bucketName,
-    Key: fileName,
-    Body: fileBuffer,
-    ContentType: mimeType,
-  });
+  const res = await s3.send(
+    new PutObjectCommand({
+      Bucket: env.SUPABASE_BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }),
+  );
+  return { key, etag: res.ETag ?? null };
+}
 
-  try {
-    const data = await s3.send(command);
-    console.log("Upload successful!", data);
-  } catch (error) {
-    console.error("Error uploading file via S3:", error);
-  }
+export async function getObject(key: string): Promise<Buffer> {
+  const res = await s3.send(
+    new GetObjectCommand({ Bucket: env.SUPABASE_BUCKET, Key: key }),
+  );
+  if (!res.Body) throw new Error(`Empty object body for key ${key}`);
+  return Buffer.from(await res.Body.transformToByteArray());
+}
+
+/** Short-lived URL for showing bills in the dashboard. Keep the bucket private. */
+export async function signedUrl(key: string, expiresInSeconds = 300) {
+  return getSignedUrl(
+    s3,
+    new GetObjectCommand({ Bucket: env.SUPABASE_BUCKET, Key: key }),
+    { expiresIn: expiresInSeconds },
+  );
 }

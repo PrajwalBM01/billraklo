@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import { env } from "./env";
 import { normalizeIndianMobile } from "./phone";
 import { describeWhatsAppError, sendTemplate, type WhatsAppSendResult } from "./whatsapp";
+import { isPrismaError } from "./prisma-error";
 
 // 2 digits state code, 10 character PAN, entity number, "Z", checksum.
 const GSTIN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
@@ -62,10 +63,6 @@ export function listClients(userId: string) {
       _count: { select: { bills: true } },
     },
   });
-}
-
-function isPrismaError(error: unknown, code: string) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === code;
 }
 
 /** Saves a client. `whatsappPhone` is unique across all users, so a number can only belong to one. */
