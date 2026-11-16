@@ -35,3 +35,5 @@ export { putObject, getObject, signedUrl } from "./storage";
 
 export { isUniqueViolation, isPrismaError } from "./prisma-error";
 
+export {InvoiceSchema, type Invoice} from "./ai/invoice-schema"
+export {EXTRACT_PROMPT} from "./ai/prompt"

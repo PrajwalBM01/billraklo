@@ -10,10 +10,14 @@ import {
 import { Worker } from "bullmq";
 import { processBill } from "./jobs/process-bill";
 import { sweepStuckBills } from "./jobs/sweep";
+import { extractBill } from "./jobs/extract";
 
 const bills = new Worker<BillJob>(
   BILLS_QUEUE,
-  (job) => processBill(job.data.billId),
+  (job) =>
+    job.name === "extract"
+      ? extractBill(job.data.billId)
+      : processBill(job.data.billId),
   {
     connection: redis(),
     concurrency: 5,
@@ -25,6 +29,7 @@ bills.on("completed", (job, result) =>
 );
 
 bills.on("failed", async (job, err) => {
+  console.log(err);
   console.error(
     `[bills] ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`,
   );

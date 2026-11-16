@@ -5,6 +5,7 @@ import {
   sendText,
   putObject,
   WhatsAppMediaError,
+  getBillQueue,
 } from "@billraklo/core";
 import crypto from "crypto";
 
@@ -83,6 +84,12 @@ export async function processBill(billId: string) {
     where: { id: bill.id },
     data: { fileKey: key, fileHash: hash, status: "stored" },
   });
+
+  await getBillQueue().add(
+    "extract",
+    { billId: bill.id },
+    { jobId: `extract-${bill.id}` },
+  );
 
   return { stored: key };
 }

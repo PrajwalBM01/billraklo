@@ -185,8 +185,8 @@ export async function sendTemplate(
         to,
         type: "template",
         template: {
-          name: "client_welcome",
-          language: { code: "en" },
+          name: env.WHATSAPP_WELCOME_TEMPLATE,
+          language: { code: env.WHATSAPP_WELCOME_TEMPLATE_LANG },
           ...(parameters.length && {
             components: [{ type: "body", parameters }],
           }),

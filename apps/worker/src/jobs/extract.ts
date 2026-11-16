@@ -1,0 +1,128 @@
+import { FilePart, generateText, Output, zodSchema } from "ai";
+import sharp from "sharp";
+import { createGoogle } from "@ai-sdk/google";
+import { env } from "../env";
+import {
+  EXTRACT_PROMPT,
+  getObject,
+  InvoiceSchema,
+  prisma,
+  sendText,
+} from "@billraklo/core";
+
+const google = createGoogle({
+  apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY,
+});
+
+async function prepImage(original: Buffer) {
+  return sharp(original)
+    .rotate()
+    .resize({ width: 1600, height: 1600, fit: "inside" })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+}
+
+export async function extractInvoice(input: Buffer, mimeType: string) {
+  const content: FilePart =
+    mimeType === "application/pdf"
+      ? { type: "file", data: input, mediaType: "application/pdf" }
+      : { type: "file", mediaType: "image", data: input };
+
+  const result = await generateText({
+    model: google("gemini-3.6-flash"),
+    output: Output.object({ schema: InvoiceSchema }),
+    temperature: 0,
+    instructions: EXTRACT_PROMPT.text,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: "Extract invoice detials from this media file",
+          },
+          content,
+        ],
+      },
+    ],
+  });
+  return result.output;
+}
+
+async function runWithSchemaRetry(input: Buffer, mimeType: string, tries = 3) {
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      return await extractInvoice(input, mimeType);
+    } catch (error) {
+      if (attempt === tries) throw error;
+      console.warn(`[extract] schema failure, retry ${attempt}/2`, error);
+    }
+  }
+  throw new Error("unreachable");
+}
+
+export async function extractBill(billId: string) {
+  const bill = await prisma.bill.findUnique({
+    where: { id: billId },
+    include: { client: true },
+  });
+  if (!bill) return { skipped: true };
+  // Idempotent: never re-extract a bill a human has already touched.
+  if (bill.status === "needs_review" || bill.status === "confirmed")
+    return { skipped: true };
+  if (!bill.fileKey) throw new Error("Bill has no stored file");
+
+  await prisma.bill.update({
+    where: { id: bill.id },
+    data: { status: "extracting" },
+  });
+
+  const original = await getObject(bill.fileKey);
+  const input =
+    bill.mimeType === "application/pdf" ? original : await prepImage(original);
+
+  const started = Date.now();
+  const result = await extractInvoice(input, bill.mimeType);
+
+  const content = `
+Here are the details I found:
+
+*Supplier Details:*
+- Supplier Name: ${result.supplierName ?? "Not available"}
+- Supplier GSTIN: ${result.supplierGstin ?? "Not available"}
+- Buyer GSTIN: ${result.buyerGstin ?? "Not available"}
+
+*Invoice Details:*
+- Invoice Number: ${result.invoiceNo ?? "Not available"}
+- Invoice Date: ${result.invoiceDate ?? "Not available"}
+
+*Item Details:*
+${
+  result.lines?.length
+    ? result.lines
+        .map(
+          (line, index) => `
+${index + 1}. ${line.description}
+   - HSN: ${line.hsn ?? "Not available"}
+   - Taxable Amount: ₹${line.taxable.toFixed(2)}
+   - GST Rate: ${line.ratePct != null ? `${line.ratePct}%` : "Not available"}
+`,
+        )
+        .join("")
+    : "No line items found."
+}
+
+*Tax Summary:*
+- Taxable Total: ₹${result.taxableTotal?.toFixed(2) ?? "Not available"}
+- CGST: ₹${result.cgst?.toFixed(2) ?? "Not available"}
+- SGST: ₹${result.sgst?.toFixed(2) ?? "Not available"}
+- IGST: ₹${result.igst?.toFixed(2) ?? "Not available"}
+
+*Grand Total:* ₹${result.grandTotal?.toFixed(2) ?? "Not available"}
+`;
+
+  console.log(result);
+  sendText(bill.client.whatsappPhone, content);
+  //   await saveExtraction(bill, invoice, usage, Date.now() - started);
+  return { extracted: true };
+}
