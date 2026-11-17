@@ -8,6 +8,7 @@ import {
   getBillQueue,
 } from "@billraklo/core";
 import crypto from "crypto";
+import { isValidBill } from "../helpers/ai";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -72,6 +73,8 @@ export async function processBill(billId: string) {
     return { duplicate: true };
   }
 
+  const validBill = await isValidBill("image", bytes, bill.mimeType);
+
   // Key shape stays as-is until P1-3 (`{period}/{hash}.{ext}`);
   // the bucket now comes from env inside putObject.
   const key = `clients/${bill.clientId}/${hash}.${bill.mimeType.split("/")[1] ?? "bin"}`;
@@ -85,11 +88,11 @@ export async function processBill(billId: string) {
     data: { fileKey: key, fileHash: hash, status: "stored" },
   });
 
-  await getBillQueue().add(
-    "extract",
-    { billId: bill.id },
-    { jobId: `extract-${bill.id}` },
-  );
+  // await getBillQueue().add(
+  //   "extract",
+  //   { billId: bill.id },
+  //   { jobId: `extract-${bill.id}` },
+  // );
 
   return { stored: key };
 }
