@@ -7,41 +7,41 @@ const ai = new GoogleGenAI({
 });
 
 type inputType = "document" | "image";
-export async function isValidBill(type: inputType, data: Buffer, mime_type: string) {
-    const bufferToString = data.toString("base64")
+export async function isValidBill(
+  type: inputType,
+  data: Buffer,
+  mime_type: string,
+) {
   try {
+    const bufferToString = data.toString("base64");
+
     const result = await ai.decisions.create({
       model: "gemini-decision-1",
       input: [
         {
-          type: type,
+          type,
           data: bufferToString,
-          mime_type: mime_type,
+          mime_type,
         },
       ],
       questions: {
         is_invoice: {
-          type: "noul", // Strict Yes/No question type
+          type: "noul",
           instructions:
             "Is this document an invoice, receipt, or billing statement?",
         },
       },
     });
-    console.log(result.answers);
+
     const answer = result.answers?.is_invoice;
 
-    if (answer && answer.type === "noul") {
-      console.log(`Probability (Yes): ${(answer.noul * 100).toFixed(1)}%`);
-      console.log(`Confidence: ${(answer.confidence * 100).toFixed(1)}%`);
-
-      // Simple conditional branching
-      if (answer.noul > 0.8) {
-        console.log("Route to invoice processing pipeline.");
-      } else {
-        console.log("Document is not an invoice.");
-      }
+    if (!answer || answer.type !== "noul") {
+      return false;
     }
+
+    return answer.noul > 0.8;
   } catch (err) {
-    console.error("something went wrong while validating input file",err);
+    console.error("Error validating input file:", err);
+    return false;
   }
 }

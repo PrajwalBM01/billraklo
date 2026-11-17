@@ -29,7 +29,7 @@ export async function extractInvoice(input: Buffer, mimeType: string) {
       : { type: "file", mediaType: "image", data: input };
 
   const result = await generateText({
-    model: google("gemini-3.6-flash"),
+    model: google("gemini-3.5-flash"),
     output: Output.object({ schema: InvoiceSchema }),
     temperature: 0,
     instructions: EXTRACT_PROMPT.text,
@@ -122,7 +122,7 @@ ${index + 1}. ${line.description}
 `;
 
   console.log(result);
-  sendText(bill.client.whatsappPhone, content);
+  sendText(bill.client.whatsappPhone, content, bill.waMsgId);
   //   await saveExtraction(bill, invoice, usage, Date.now() - started);
   return { extracted: true };
 }

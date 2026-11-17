@@ -69,11 +69,20 @@ export async function processBill(billId: string) {
     await sendText(
       bill.client.whatsappPhone,
       "You've already sent this bill, so no need to send it again 👍",
+      bill.waMsgId,
     );
     return { duplicate: true };
   }
 
   const validBill = await isValidBill("image", bytes, bill.mimeType);
+  if (!validBill) {
+    await sendText(
+      bill.client.whatsappPhone,
+      "This doesn't seem to be a processable bill",
+      bill.waMsgId,
+    );
+    return { skipped: true };
+  }
 
   // Key shape stays as-is until P1-3 (`{period}/{hash}.{ext}`);
   // the bucket now comes from env inside putObject.
@@ -88,11 +97,11 @@ export async function processBill(billId: string) {
     data: { fileKey: key, fileHash: hash, status: "stored" },
   });
 
-  // await getBillQueue().add(
-  //   "extract",
-  //   { billId: bill.id },
-  //   { jobId: `extract-${bill.id}` },
-  // );
+  await getBillQueue().add(
+    "extract",
+    { billId: bill.id },
+    { jobId: `extract-${bill.id}` },
+  );
 
   return { stored: key };
 }
