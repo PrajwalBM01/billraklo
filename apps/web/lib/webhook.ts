@@ -111,6 +111,7 @@ export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
     try {
       const bill = await prisma.bill.create({
         data: {
+          waMsgId:message.id,
           clientId: client.id,
           mimeType: mediaInfo.mime_type,
           waMediaId: mediaInfo.id,

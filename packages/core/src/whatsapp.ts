@@ -10,7 +10,7 @@ const FileDownloadSchema = z.object({
 
 const baseURL = `https://graph.facebook.com/${env.GRAPH_API_VERSION}/${env.PHONE_NUMBER_ID}/messages`;
 
-export async function sendText(to: string, body: string) {
+export async function sendText(to: string, body: string, context?: string) {
   const response = await fetch(baseURL, {
     method: "POST",
     headers: {
@@ -21,6 +21,11 @@ export async function sendText(to: string, body: string) {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to,
+      ...(context && {
+        context: {
+          message_id: context,
+        },
+      }),
       type: "text",
       text: {
         preview_url: false,

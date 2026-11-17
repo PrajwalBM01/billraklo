@@ -74,20 +74,10 @@ export async function POST(request: NextRequest) {
         { status: 200 },
       );
     }
-
-    //1. store the incoming message id and check idempotancy
-    const processed = await isMessageProcessed(parsedBody.data);
-    if (processed) {
-      return NextResponse.json(
-        { success: true, duplicate: true },
-        { status: 200 },
-      );
-    }
+    
     const value = parsedBody.data.entry[0].changes[0].value;
-
-    //2. filter the incoming msg into status and message
-    //handle statuses
-    if (value.statuses) {
+     //handle statuses
+     if (value.statuses) {
       for (const status of value.statuses ?? []) {
         try {
           await recordWelcomeStatus(status.id, status.status, {
@@ -99,6 +89,19 @@ export async function POST(request: NextRequest) {
         }
       }
     }
+
+    //1. store the incoming message id and check idempotancy
+    const processed = await isMessageProcessed(parsedBody.data);
+    if (processed) {
+      return NextResponse.json(
+        { success: true, duplicate: true },
+        { status: 200 },
+      );
+    }
+   
+
+    //2. filter the incoming msg into status and message
+   
 
     //handling messages
     if (value.messages) {
