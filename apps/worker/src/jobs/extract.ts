@@ -81,7 +81,7 @@ export async function extractBill(billId: string) {
   }
 
   const result = extracted.result;
-  const extractedAt = Date.now();
+
   const content = `
 Here are the details I found:
 
@@ -119,15 +119,17 @@ ${index + 1}. ${line.description}
 *Grand Total:* ₹${result.grandTotal?.toFixed(2) ?? "Not available"}
 `;
 
-  console.log(extracted.result,extracted.usage);
+  console.log(extracted.result, extracted.usage);
   await prisma.bill.update({
     where: { id: bill.id },
     data: {
       status: "extracted",
       confidence: result.confidence,
-      extractedAt: extractedAt.toString(),
+      extractedAt: new Date(),
       extractModel: env.EXTRACT_MODEL,
       rawExtraction: result,
+      inputTokens: extracted.usage.inputTokens,
+      outputToken: extracted.usage.outputTokens,
     },
   });
 
