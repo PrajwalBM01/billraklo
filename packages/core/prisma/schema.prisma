@@ -49,6 +49,9 @@ model Bill {
   confidence     String?  
   extractModel   String?
   extractedAt    DateTime?
+  inputTokens Int?
+  outputToken Int?
+
 
   @@unique([clientId, fileHash])
    @@index([status, receivedAt])

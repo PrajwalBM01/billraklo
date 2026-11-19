@@ -47,7 +47,8 @@ export async function extractInvoice(input: Buffer, mimeType: string) {
       },
     ],
   });
-  return result.output;
+
+  return { result: result.output, usage: result.usage };
 }
 
 export async function extractBill(billId: string) {
@@ -70,16 +71,17 @@ export async function extractBill(billId: string) {
   const input =
     bill.mimeType === "application/pdf" ? original : await prepImage(original);
 
-  // const started = Date.now();
-  let result: Awaited<ReturnType<typeof extractInvoice>>;
+  let extracted: Awaited<ReturnType<typeof extractInvoice>>;
   try {
-    result = await extractInvoice(input, bill.mimeType);
+    extracted = await extractInvoice(input, bill.mimeType);
   } catch (error) {
     console.error(`[extract] bill ${bill.id} — AI extraction failed`, error);
     //throw unretryable error for now, temp
     throw new UnrecoverableError("Ai extraction error");
   }
 
+  const result = extracted.result;
+  const extractedAt = Date.now();
   const content = `
 Here are the details I found:
 
@@ -117,14 +119,26 @@ ${index + 1}. ${line.description}
 *Grand Total:* ₹${result.grandTotal?.toFixed(2) ?? "Not available"}
 `;
 
-  console.log(result);
-  
-  // sendText(bill.client.whatsappPhone, content, bill.waMsgId);
-  //   await saveExtraction(bill, invoice, usage, Date.now() - started);
+  console.log(extracted.result,extracted.usage);
+  await prisma.bill.update({
+    where: { id: bill.id },
+    data: {
+      status: "extracted",
+      confidence: result.confidence,
+      extractedAt: extractedAt.toString(),
+      extractModel: env.EXTRACT_MODEL,
+      rawExtraction: result,
+    },
+  });
+
+  if (result.confidence === "high") {
+    await sendText(bill.client.whatsappPhone, content, bill.waMsgId);
+  } else {
+    await sendText(
+      bill.client.whatsappPhone,
+      "Extracted!, details under review",
+      bill.waMsgId,
+    );
+  }
   return { extracted: true };
-}
-
-async function storeExtracton(result:ReturnType<typeof extractInvoice>){
-
-
 }
