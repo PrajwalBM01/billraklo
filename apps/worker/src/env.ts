@@ -12,6 +12,7 @@ dotenv.config({
 
 const envSchema = z.object({
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1, "Google ai api key required"),
+  EXTRACT_MODEL:z.string().min(1, "AI model requierd"),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

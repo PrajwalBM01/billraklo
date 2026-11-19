@@ -44,7 +44,11 @@ model Bill {
   fileHash   String?
   error String?
   status     String   @default("received")
-  receivedAt DateTime @default(now())
+  receivedAt  DateTime @default(now())
+  rawExtraction  Json?
+  confidence     String?  
+  extractModel   String?
+  extractedAt    DateTime?
 
   @@unique([clientId, fileHash])
    @@index([status, receivedAt])
