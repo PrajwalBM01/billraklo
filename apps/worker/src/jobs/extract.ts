@@ -9,6 +9,7 @@ import {
   prisma,
   sendText,
 } from "@billraklo/core";
+import { UnrecoverableError } from "bullmq";
 
 const google = createGoogle({
   apiKey: env.GOOGLE_GENERATIVE_AI_API_KEY,
@@ -49,18 +50,6 @@ export async function extractInvoice(input: Buffer, mimeType: string) {
   return result.output;
 }
 
-async function runWithSchemaRetry(input: Buffer, mimeType: string, tries = 3) {
-  for (let attempt = 1; attempt <= tries; attempt++) {
-    try {
-      return await extractInvoice(input, mimeType);
-    } catch (error) {
-      if (attempt === tries) throw error;
-      console.warn(`[extract] schema failure, retry ${attempt}/2`, error);
-    }
-  }
-  throw new Error("unreachable");
-}
-
 export async function extractBill(billId: string) {
   const bill = await prisma.bill.findUnique({
     where: { id: billId },
@@ -70,7 +59,7 @@ export async function extractBill(billId: string) {
   // Idempotent: never re-extract a bill a human has already touched.
   if (bill.status === "needs_review" || bill.status === "confirmed")
     return { skipped: true };
-  if (!bill.fileKey) throw new Error("Bill has no stored file");
+  if (!bill.fileKey) throw new UnrecoverableError("Bill has no stored file");
 
   await prisma.bill.update({
     where: { id: bill.id },
@@ -81,8 +70,15 @@ export async function extractBill(billId: string) {
   const input =
     bill.mimeType === "application/pdf" ? original : await prepImage(original);
 
-  const started = Date.now();
-  const result = await extractInvoice(input, bill.mimeType);
+  // const started = Date.now();
+  let result: Awaited<ReturnType<typeof extractInvoice>>;
+  try {
+    result = await extractInvoice(input, bill.mimeType);
+  } catch (error) {
+    console.error(`[extract] bill ${bill.id} — AI extraction failed`, error);
+    //throw unretryable error for now, temp
+    throw new UnrecoverableError("Ai extraction error");
+  }
 
   const content = `
 Here are the details I found:
@@ -122,7 +118,8 @@ ${index + 1}. ${line.description}
 `;
 
   console.log(result);
-  sendText(bill.client.whatsappPhone, content, bill.waMsgId);
+  
+  // sendText(bill.client.whatsappPhone, content, bill.waMsgId);
   //   await saveExtraction(bill, invoice, usage, Date.now() - started);
   return { extracted: true };
 }

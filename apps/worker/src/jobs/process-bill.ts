@@ -9,6 +9,7 @@ import {
 } from "@billraklo/core";
 import crypto from "crypto";
 import { isValidBill } from "../helpers/ai";
+import { UnrecoverableError } from "bullmq";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -25,34 +26,23 @@ export async function processBill(billId: string) {
 
   if (!bill || bill.status !== "received") return { skipped: true };
 
-  // Defence in depth: the webhook filters types too, but never download a file
-  // type we can't process.
+  //unsupported files get failed
   if (!ALLOWED_MIME.has(bill.mimeType)) {
-    throw new Error(`Unsupported file type: ${bill.mimeType}`);
+    throw new UnrecoverableError(`Unsupported file type: ${bill.mimeType}`);
   }
 
-  // Translate "retrying won't help" media failures into readable bill errors
-  // instead of five minutes of pointless retries.
+  //download media, only retry when its a network issue else fail
   let bytes: Buffer;
   try {
     ({ bytes } = await downloadMedia(bill.waMediaId));
   } catch (error) {
-    if (error instanceof WhatsAppMediaError) {
-      if (!error.retryable) {
-        await prisma.bill.update({
-          where: { id: bill.id },
-          data: { status: "failed", error: error.message },
-        });
-        await sendText(
-          bill.client.whatsappPhone,
-          "Sorry, I couldn't open that file. Please send it again — a photo or a PDF works best.",
-        );
-      }
-      throw error; // retryable ones still fail the job so BullMQ retries
+    if (error instanceof WhatsAppMediaError && !error.retryable) {
+      throw new UnrecoverableError(error.message);
     }
     throw error;
   }
 
+  //after we get the downloaded content
   const hash = crypto.createHash("sha256").update(bytes).digest("hex");
 
   // Fast path: same content already stored for this client. (P1-4 makes the
@@ -76,6 +66,10 @@ export async function processBill(billId: string) {
 
   const validBill = await isValidBill("image", bytes, bill.mimeType);
   if (!validBill) {
+    await prisma.bill.update({
+      where: { id: bill.id },
+      data: { status: "failed", error: "Unprocessable bill" },
+    });
     await sendText(
       bill.client.whatsappPhone,
       "This doesn't seem to be a processable bill",
