@@ -1,17 +1,30 @@
-// import { z } from "zod";
+import dotenv from "dotenv";
+import { z } from "zod";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-// const envSchema = z.object({
-//   REDIS_URL: z.string().min(1, "REDIES_URL is required"),
-// });
+// Always load packages/core/.env relative to this file
+const currentDir = dirname(fileURLToPath(import.meta.url));
 
-// const parsedEnv = envSchema.safeParse(process.env);
+dotenv.config({
+  path: resolve(currentDir, "../.env"),
+});
 
-// if (!parsedEnv.success) {
-//   console.error("❌ Invalid environment variables:");
+const envSchema = z.object({
+  GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(1, "Google ai api key required"),
+  EXTRACT_MODEL:z.string().min(1, "AI model requierd"),
+});
 
-//   console.error(z.treeifyError(parsedEnv.error));
+const parsedEnv = envSchema.safeParse(process.env);
 
-//   throw new Error("Missing or invalid environment variables in worker.");
-// }
+if (!parsedEnv.success) {
+  console.error("❌ Invalid environment variables:");
 
-// export const env = parsedEnv.data;
+  console.error(z.treeifyError(parsedEnv.error));
+
+  throw new Error(
+    "Missing or invalid environment variables. Check your .env.local file.",
+  );
+}
+
+export const env = parsedEnv.data;

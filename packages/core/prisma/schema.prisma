@@ -37,13 +37,21 @@ model Bill {
   id         String   @id @default(cuid())
   clientId   String
   client     Client   @relation(fields: [clientId], references: [id])
+  waMsgId String
   waMediaId   String
   mimeType String
   fileKey    String?
   fileHash   String?
   error String?
   status     String   @default("received")
-  receivedAt DateTime @default(now())
+  receivedAt  DateTime @default(now())
+  rawExtraction  Json?
+  confidence     String?  
+  extractModel   String?
+  extractedAt    DateTime?
+  inputTokens Int?
+  outputToken Int?
+
 
   @@unique([clientId, fileHash])
    @@index([status, receivedAt])
