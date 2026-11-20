@@ -22,6 +22,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/account" className="text-muted-foreground hover:text-foreground">
               Account
             </Link>
+            <Link href="/settings" className="text-muted-foreground hover:text-foreground">
+              Settings
+            </Link>
           </nav>
           {/* The session is read per request, so it streams in behind a boundary. */}
           <Suspense fallback={<div className="size-8 rounded-full bg-muted" />}>
