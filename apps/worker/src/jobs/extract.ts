@@ -135,10 +135,16 @@ ${index + 1}. ${line.description}
 
   if (result.confidence === "high") {
     await sendText(bill.client.whatsappPhone, content, bill.waMsgId);
-  } else {
+  } else if (result.confidence === "medium") {
     await sendText(
       bill.client.whatsappPhone,
       "Extracted!, details under review",
+      bill.waMsgId,
+    );
+  } else {
+    await sendText(
+      bill.client.whatsappPhone,
+      "Doesn't seem to have much inforamtion, or the data is not perfect. Under review.",
       bill.waMsgId,
     );
   }
