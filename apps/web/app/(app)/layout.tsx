@@ -6,7 +6,7 @@ import { getSession } from "@/lib/session";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
+    <SidebarProvider >
       <TooltipProvider>
         {/* The session is read per request, so the user menu streams in behind a boundary. */}
         <Suspense fallback={<AppSidebar />}>

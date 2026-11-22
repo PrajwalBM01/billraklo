@@ -10,7 +10,6 @@ import {
   PanelLeftCloseIcon,
   ReceiptTextIcon,
   SettingsIcon,
-  UserRoundIcon,
   UsersIcon,
 } from "lucide-react";
 import { UserAvatar } from "@/components/auth/user-avatar";
@@ -45,7 +44,6 @@ import { authClient } from "@/lib/auth-client";
 const navigation = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon },
   { title: "Clients", href: "/clients", icon: UsersIcon },
-  { title: "Account", href: "/account", icon: UserRoundIcon },
   { title: "Settings", href: "/settings", icon: SettingsIcon },
 ];
 

@@ -45,7 +45,7 @@ async function Welcome() {
         </div>
       </CardHeader>
       <CardContent>
-        <Link href="/account" className={buttonVariants({ variant: "outline", className: "w-fit" })}>
+        <Link href="/settings" className={buttonVariants({ variant: "outline", className: "w-fit" })}>
           Manage sign-in methods
         </Link>
       </CardContent>
