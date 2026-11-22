@@ -10,3 +10,13 @@ const dateFormatter = new Intl.DateTimeFormat("en-IN", {
 export function formatDate(date: Date | string | number) {
   return dateFormatter.format(new Date(date));
 }
+
+const currencyFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 2,
+});
+
+export function formatCurrency(amount: number) {
+  return currencyFormatter.format(amount);
+}

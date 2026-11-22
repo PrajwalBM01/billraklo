@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   EllipsisVerticalIcon,
+  FileTextIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   PanelLeftCloseIcon,
@@ -43,6 +44,7 @@ import { authClient } from "@/lib/auth-client";
 
 const navigation = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon },
+  { title: "Bills", href: "/bills", icon: FileTextIcon },
   { title: "Clients", href: "/clients", icon: UsersIcon },
   { title: "Settings", href: "/settings", icon: SettingsIcon },
 ];
