@@ -1,7 +1,6 @@
 import { Suspense } from "react";
-import Link from "next/link";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppMobileHeader, AppSidebar } from "@/components/app-sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getSession } from "@/lib/session";
 
@@ -14,15 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarWithUser />
         </Suspense>
         <SidebarInset>
-          <header className="flex h-14 items-center gap-2 border-b px-4 md:hidden">
-            <SidebarTrigger />
-            <Link
-              href="/dashboard"
-              className="font-heading text-base font-semibold tracking-tight"
-            >
-              Billraklo
-            </Link>
-          </header>
+          <AppMobileHeader />
           <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 sm:p-8">
             {children}
           </main>

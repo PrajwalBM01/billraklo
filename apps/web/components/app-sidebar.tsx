@@ -7,6 +7,7 @@ import {
   EllipsisVerticalIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  PanelLeftCloseIcon,
   ReceiptTextIcon,
   SettingsIcon,
   UserRoundIcon,
@@ -34,6 +35,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,8 +57,9 @@ type SidebarUser = {
 
 export function AppSidebar({ user }: { user?: SidebarUser }) {
   const pathname = usePathname();
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, openMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
   const [signingOut, setSigningOut] = useState(false);
+  const sidebarOpen = isMobile ? openMobile : state === "expanded";
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
@@ -77,10 +80,11 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
+              type="button"
               size="lg"
-              tooltip="Billraklo"
-              render={<Link href="/dashboard" />}
-              onClick={() => setOpenMobile(false)}
+              tooltip={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+              aria-expanded={sidebarOpen}
+              onClick={toggleSidebar}
             >
               <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                 <ReceiptTextIcon />
@@ -91,6 +95,7 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
                 </span>
                 <span className="truncate text-xs text-muted-foreground">Bill collection</span>
               </div>
+              <PanelLeftCloseIcon className="ml-auto shrink-0 text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -181,5 +186,22 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
 
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+export function AppMobileHeader() {
+  const { toggleSidebar } = useSidebar();
+
+  return (
+    <header className="flex h-14 items-center gap-1 border-b px-3 md:hidden">
+      <SidebarTrigger />
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className="font-heading text-base font-semibold tracking-tight"
+      >
+        Billraklo
+      </button>
+    </header>
   );
 }
