@@ -64,7 +64,11 @@ export async function processBill(billId: string) {
     return { duplicate: true };
   }
 
-  const validBill = await isValidBill("image", bytes, bill.mimeType);
+  const validBill = await isValidBill(
+    bill.mimeType === "application/pdf" ? "document" : "image",
+    bytes,
+    bill.mimeType,
+  );
   if (!validBill) {
     await prisma.bill.update({
       where: { id: bill.id },
