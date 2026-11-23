@@ -37,6 +37,7 @@ model Bill {
   id         String   @id @default(cuid())
   clientId   String
   client     Client   @relation(fields: [clientId], references: [id])
+  billEntries BillEntry[]
   waMsgId String
   waMediaId   String
   mimeType String
@@ -54,7 +55,37 @@ model Bill {
 
 
   @@unique([clientId, fileHash])
-   @@index([status, receivedAt])
+  @@index([status, receivedAt])
+}
+
+model BillEntry {
+  id              String   @id @default(cuid())
+  billId          String
+  bill            Bill     @relation(fields: [billId], references: [id]) 
+  supplierName    String?
+  supplierGstin   String?
+  buyerGstin      String?
+  invoiceNo       String?    
+  invoiceDate     String? 
+  lines           InvoiceLine[]
+  taxablePaise    Int?
+  cgstPaise       Int?
+  sgstPaise       Int?
+  igstPaise       Int?
+  totalPaise      Int?
+  createdAt       DateTime @default(now())
+
+  @@index([billId])
+}
+
+model InvoiceLine {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  invoice     BillEntry @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  hsn         String?
+  taxable     Float
+  ratePct     Float?
 }
 
 model WaMessage {
