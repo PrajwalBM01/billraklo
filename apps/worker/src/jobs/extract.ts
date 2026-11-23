@@ -80,73 +80,78 @@ export async function extractBill(billId: string) {
     throw new UnrecoverableError("Ai extraction error");
   }
 
-  const result = extracted.result;
+  const invoices = extracted.result;
 
-  const content = `
-Here are the details I found:
-
-*Supplier Details:*
-- Supplier Name: ${result.supplierName ?? "Not available"}
-- Supplier GSTIN: ${result.supplierGstin ?? "Not available"}
-- Buyer GSTIN: ${result.buyerGstin ?? "Not available"}
-
-*Invoice Details:*
-- Invoice Number: ${result.invoiceNo ?? "Not available"}
-- Invoice Date: ${result.invoiceDate ?? "Not available"}
-
-*Item Details:*
-${
-  result.lines?.length
-    ? result.lines
-        .map(
-          (line, index) => `
-${index + 1}. ${line.description}
-   - HSN: ${line.hsn ?? "Not available"}
-   - Taxable Amount: ₹${line.taxable.toFixed(2)}
-   - GST Rate: ${line.ratePct != null ? `${line.ratePct}%` : "Not available"}
-`,
-        )
-        .join("")
-    : "No line items found."
-}
-
-*Tax Summary:*
-- Taxable Total: ₹${result.taxableTotal?.toFixed(2) ?? "Not available"}
-- CGST: ₹${result.cgst?.toFixed(2) ?? "Not available"}
-- SGST: ₹${result.sgst?.toFixed(2) ?? "Not available"}
-- IGST: ₹${result.igst?.toFixed(2) ?? "Not available"}
-
-*Grand Total:* ₹${result.grandTotal?.toFixed(2) ?? "Not available"}
-`;
-
-  console.log(extracted.result, extracted.usage);
-  await prisma.bill.update({
-    where: { id: bill.id },
-    data: {
-      status: "extracted",
-      confidence: result.confidence,
-      extractedAt: new Date(),
-      extractModel: env.EXTRACT_MODEL,
-      rawExtraction: result,
-      inputTokens: extracted.usage.inputTokens,
-      outputToken: extracted.usage.outputTokens,
-    },
-  });
-
-  if (result.confidence === "high") {
-    await sendText(bill.client.whatsappPhone, content, bill.waMsgId);
-  } else if (result.confidence === "medium") {
-    await sendText(
-      bill.client.whatsappPhone,
-      "Extracted!, details under review",
-      bill.waMsgId,
-    );
-  } else {
-    await sendText(
-      bill.client.whatsappPhone,
-      "Doesn't seem to have much inforamtion, or the data is not perfect. Under review.",
-      bill.waMsgId,
-    );
+  for (const invoice of invoices){
+    await prisma.billEntry.create
+    // await prisma.invoiceLine.crea
   }
+
+//   const content = `
+// Here are the details I found:
+
+// *Supplier Details:*
+// - Supplier Name: ${result.supplierName ?? "Not available"}
+// - Supplier GSTIN: ${result.supplierGstin ?? "Not available"}
+// - Buyer GSTIN: ${result.buyerGstin ?? "Not available"}
+
+// *Invoice Details:*
+// - Invoice Number: ${result.invoiceNo ?? "Not available"}
+// - Invoice Date: ${result.invoiceDate ?? "Not available"}
+
+// *Item Details:*
+// ${
+//   result.lines?.length
+//     ? result.lines
+//         .map(
+//           (line, index) => `
+// ${index + 1}. ${line.description}
+//    - HSN: ${line.hsn ?? "Not available"}
+//    - Taxable Amount: ₹${line.taxable.toFixed(2)}
+//    - GST Rate: ${line.ratePct != null ? `${line.ratePct}%` : "Not available"}
+// `,
+//         )
+//         .join("")
+//     : "No line items found."
+// }
+
+// *Tax Summary:*
+// - Taxable Total: ₹${result.taxableTotal?.toFixed(2) ?? "Not available"}
+// - CGST: ₹${result.cgst?.toFixed(2) ?? "Not available"}
+// - SGST: ₹${result.sgst?.toFixed(2) ?? "Not available"}
+// - IGST: ₹${result.igst?.toFixed(2) ?? "Not available"}
+
+// *Grand Total:* ₹${result.grandTotal?.toFixed(2) ?? "Not available"}
+// `;
+
+//   console.log(extracted.result, extracted.usage);
+//   await prisma.bill.update({
+//     where: { id: bill.id },
+//     data: {
+//       status: "extracted",
+//       confidence: result.confidence,
+//       extractedAt: new Date(),
+//       extractModel: env.EXTRACT_MODEL,
+//       rawExtraction: result,
+//       inputTokens: extracted.usage.inputTokens,
+//       outputToken: extracted.usage.outputTokens,
+//     },
+//   });
+
+//   if (result.confidence === "high") {
+//     await sendText(bill.client.whatsappPhone, content, bill.waMsgId);
+//   } else if (result.confidence === "medium") {
+//     await sendText(
+//       bill.client.whatsappPhone,
+//       "Extracted!, details under review",
+//       bill.waMsgId,
+//     );
+//   } else {
+//     await sendText(
+//       bill.client.whatsappPhone,
+//       "Doesn't seem to have much inforamtion, or the data is not perfect. Under review.",
+//       bill.waMsgId,
+//     );
+//   }
   return { extracted: true };
 }
