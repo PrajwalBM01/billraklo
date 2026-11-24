@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  ChartColumnIcon,
   EllipsisVerticalIcon,
   FileTextIcon,
   LayoutDashboardIcon,
@@ -46,6 +47,7 @@ const navigation = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboardIcon },
   { title: "Bills", href: "/bills", icon: FileTextIcon },
   { title: "Clients", href: "/clients", icon: UsersIcon },
+  { title: "Reports", href: "/reports", icon: ChartColumnIcon },
   { title: "Settings", href: "/settings", icon: SettingsIcon },
 ];
 

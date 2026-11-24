@@ -225,6 +225,50 @@
   animation: docket-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
+@media print {
+  body:has([data-purchase-report]) {
+    background: white;
+    color: black;
+  }
+
+  body:has([data-purchase-report]) [data-slot="sidebar"],
+  body:has([data-purchase-report]) [data-slot="sidebar-inset"] > header {
+    display: none;
+  }
+
+  body:has([data-purchase-report]) :is([data-slot="sidebar-wrapper"], [data-slot="sidebar-inset"], main) {
+    display: block;
+    min-height: 0;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    background: white;
+    box-shadow: none;
+  }
+
+  [data-purchase-report] :is([data-slot="card"], [data-slot="table-container"], section > div) {
+    overflow: visible;
+    background: white;
+    color: black;
+    box-shadow: none;
+  }
+
+  [data-purchase-report] :is(th, td, .text-muted-foreground) {
+    color: black;
+  }
+
+  [data-purchase-report] th,
+  [data-purchase-report] td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  [data-purchase-report] tr {
+    break-inside: avoid;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .docket {
     animation: none;
