@@ -38,9 +38,9 @@ model Bill {
   clientId   String
   client     Client   @relation(fields: [clientId], references: [id])
   billEntries BillEntry[]
-  waMsgId String
-  waMediaId   String
-  mimeType String
+  waMsgId String?
+  waMediaId   String?
+  mimeType String?
   fileKey    String?
   fileHash   String?
   error String?
@@ -50,6 +50,7 @@ model Bill {
   confidence     String?  
   extractModel   String?
   extractedAt    DateTime?
+  reviewedAt     DateTime?
   inputTokens Int?
   outputToken Int?
 
@@ -68,11 +69,11 @@ model BillEntry {
   invoiceNo       String?    
   invoiceDate     String? 
   lines           InvoiceLine[]
-  taxablePaise    Int?
-  cgstPaise       Int?
-  sgstPaise       Int?
-  igstPaise       Int?
-  totalPaise      Int?
+  taxablePaise    BigInt?
+  cgstPaise       BigInt?
+  sgstPaise       BigInt?
+  igstPaise       BigInt?
+  totalPaise      BigInt?
   createdAt       DateTime @default(now())
 
   @@index([billId])

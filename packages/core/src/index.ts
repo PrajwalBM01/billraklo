@@ -22,6 +22,16 @@ export {
   type ClientInput,
   type ClientField,
 } from "./clients";
+export {
+  billAttentionFilter,
+  billEntrySelect,
+  billProcessingStatuses,
+  billReviewStatuses,
+  canReviewBill,
+  extractedRupeesToPaise,
+  listBills,
+  parseStoredInvoices,
+} from "./bills";
 
 export {
   getBillQueue,

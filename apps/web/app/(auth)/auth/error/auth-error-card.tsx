@@ -25,8 +25,8 @@ export function AuthErrorCard() {
         <Link href="/sign-in" className={buttonVariants({ className: "w-full" })}>
           Back to sign in
         </Link>
-        <Link href="/account" className={buttonVariants({ variant: "ghost", className: "w-full" })}>
-          Go to account settings
+        <Link href="/settings" className={buttonVariants({ variant: "ghost", className: "w-full" })}>
+          Go to settings
         </Link>
       </CardFooter>
     </Card>

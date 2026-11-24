@@ -3,6 +3,7 @@ import {
   type BillJob,
   BILLS_QUEUE,
   prisma,
+  isPrismaError,
   sendText,
   getMaintenanceQueue,
   MAINTENANCE_QUEUE,
@@ -42,16 +43,19 @@ bills.on("failed", async (job, err) => {
   if (!job || !(unrecoverable || exhausted)) return;
   try {
     const bill = await prisma.bill.update({
-      where: { id: job.data.billId },
+      where: {
+        id: job.data.billId,
+        status: { in: job.name === "extract" ? ["stored", "extracting"] : ["received", "stored"] },
+      },
       data: { status: "failed", error: err.message },
       include: { client: true },
     });
-    await sendText(
+    if (bill.waMsgId) await sendText(
       bill.client.whatsappPhone,
       "Sorry, I couldn't open that file. Please send the bill again.",
     );
   } catch (e) {
-    console.error("[bills] could not record failure", e);
+    if (!isPrismaError(e, "P2025")) console.error("[bills] could not record failure", e);
   }
 });
 

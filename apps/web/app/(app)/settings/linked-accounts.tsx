@@ -29,7 +29,7 @@ export function LinkedAccounts({ accounts }: { accounts: LinkedAccount[] }) {
   async function connectGoogle() {
     setPending("google");
     // Redirects to Google; on failure Better Auth sends the user to /auth/error.
-    const { error } = await authClient.linkSocial({ provider: "google", callbackURL: "/account" });
+    const { error } = await authClient.linkSocial({ provider: "google", callbackURL: "/settings" });
     if (error) {
       setPending(null);
       toast.error(authErrorMessage(error));
