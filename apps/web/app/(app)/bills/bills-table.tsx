@@ -42,6 +42,18 @@ const confidenceStyles: Record<string, { label: string; variant: BadgeVariant }>
   low: { label: "Low", variant: "outline" },
 };
 
+export function BillStatusBadge({ status, confidence }: { status: string; confidence: string | null }) {
+  const needsReview = status === "extracted" && (confidence === "medium" || confidence === "low");
+  const displayStatus = needsReview ? "needs_review" : status;
+  const style = statusStyles[displayStatus];
+
+  return (
+    <Badge variant={style?.variant ?? "outline"}>
+      {style?.label ?? displayStatus.replace(/_/g, " ")}
+    </Badge>
+  );
+}
+
 export function BillsTable({ bills }: { bills: BillRow[] }) {
   return (
     <Card className="py-0">
@@ -58,10 +70,6 @@ export function BillsTable({ bills }: { bills: BillRow[] }) {
         </TableHeader>
         <TableBody>
           {bills.map((bill) => {
-            const status = statusStyles[bill.status] ?? {
-              label: bill.status.replace(/_/g, " "),
-              variant: "outline" as const,
-            };
             const confidence = bill.confidence ? confidenceStyles[bill.confidence] : null;
 
             return (
@@ -77,7 +85,7 @@ export function BillsTable({ bills }: { bills: BillRow[] }) {
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{bill.clientName}</TableCell>
                 <TableCell>
-                  <Badge variant={status.variant}>{status.label}</Badge>
+                  <BillStatusBadge status={bill.status} confidence={bill.confidence} />
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-muted-foreground">
                   {bill.receivedOn}

@@ -22,7 +22,7 @@ export {
   type ClientInput,
   type ClientField,
 } from "./clients";
-export { listBills } from "./bills";
+export { billAttentionFilter, listBills } from "./bills";
 
 export {
   getBillQueue,

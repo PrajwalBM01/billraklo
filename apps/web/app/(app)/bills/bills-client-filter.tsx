@@ -16,9 +16,11 @@ type ClientOption = { id: string; legalName: string };
 export function BillsClientFilter({
   clients,
   value,
+  attentionOnly,
 }: {
   clients: ClientOption[];
   value: string;
+  attentionOnly: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,7 +33,10 @@ export function BillsClientFilter({
 
   function handleChange(next: string | null) {
     if (!next) return;
-    const href = next === "all" ? pathname : `${pathname}?client=${encodeURIComponent(next)}`;
+    const params = new URLSearchParams();
+    if (next !== "all") params.set("client", next);
+    if (attentionOnly) params.set("view", "attention");
+    const href = params.size ? `${pathname}?${params}` : pathname;
     startTransition(() => router.push(href));
   }
 

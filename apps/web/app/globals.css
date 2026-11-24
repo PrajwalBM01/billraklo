@@ -10,6 +10,8 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-heading);
+  --font-display: var(--font-bricolage);
+  --font-landing: var(--font-public-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -126,5 +128,105 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Landing page palette. Kept separate from the app tokens so the marketing page
+   can use a paper-and-ledger palette without shifting the dashboard. */
+.landing {
+  --lp-paper: #f2f5ee;
+  --lp-paper-raised: #fbfcf8;
+  --lp-paper-deep: #e4ebde;
+  --lp-chat: #e9f0e4;
+  --lp-chat-dot: #cfdccb;
+  --lp-ink: #12231b;
+  --lp-ink-soft: #51645a;
+  --lp-green: #0f6b4f;
+  --lp-green-hover: #0a543e;
+  --lp-green-soft: #dcefe5;
+  --lp-on-green: #f7faf5;
+  --lp-marigold: #b97407;
+  --lp-marigold-soft: #fdf0d2;
+  --lp-rule: #d3ddd0;
+  --lp-rule-strong: #b8c7b5;
+  --lp-bubble: #d7f5c9;
+  --lp-bubble-ink: #12351f;
+  --lp-inverse-bg: #0c3b2b;
+  --lp-inverse-fg: #f0f5ec;
+  --lp-inverse-soft: #a9c6b6;
+}
+
+.dark .landing {
+  --lp-paper: #0b1411;
+  --lp-paper-raised: #111d18;
+  --lp-paper-deep: #16241e;
+  --lp-chat: #0f1b16;
+  --lp-chat-dot: #24382e;
+  --lp-ink: #e9f0e9;
+  --lp-ink-soft: #9cb1a5;
+  --lp-green: #58d3a9;
+  --lp-green-hover: #7ee6c0;
+  --lp-green-soft: #133126;
+  --lp-on-green: #07130e;
+  --lp-marigold: #f2b843;
+  --lp-marigold-soft: #33260d;
+  --lp-rule: #23362d;
+  --lp-rule-strong: #354d41;
+  --lp-bubble: #14472f;
+  --lp-bubble-ink: #dff7e8;
+  --lp-inverse-bg: #14251e;
+  --lp-inverse-fg: #e9f0e9;
+  --lp-inverse-soft: #9cb1a5;
+}
+
+/* A faint ledger ruling behind the hero, faded out so it never fights the copy. */
+.ledger-lines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 47px,
+    var(--lp-rule) 47px 48px
+  );
+  opacity: 0.45;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 14%,
+    black 58%,
+    transparent 94%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 14%,
+    black 58%,
+    transparent 94%
+  );
+}
+
+/* The WhatsApp panel of the hero docket: a quiet dot grid, not a gradient. */
+.chat-paper {
+  background-color: var(--lp-chat);
+  background-image: radial-gradient(var(--lp-chat-dot) 0.7px, transparent 0.7px);
+  background-size: 14px 14px;
+}
+
+@keyframes docket-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.docket {
+  animation: docket-rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docket {
+    animation: none;
   }
 }

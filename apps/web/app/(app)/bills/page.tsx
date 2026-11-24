@@ -14,7 +14,7 @@ import { BillsTable, type BillRow } from "./bills-table";
 export const metadata: Metadata = { title: "Bills · Billraklo" };
 
 type BillsPageProps = {
-  searchParams: Promise<{ client?: string | string[] }>;
+  searchParams: Promise<{ client?: string | string[]; view?: string | string[] }>;
 };
 
 export default function BillsPage({ searchParams }: BillsPageProps) {
@@ -66,11 +66,22 @@ async function BillsContent({ searchParams }: BillsPageProps) {
 
   const requestedId = typeof params.client === "string" ? params.client : undefined;
   const selectedClient = clients.find((client) => client.id === requestedId);
-  const bills = await listBills(user.id, selectedClient?.id);
+  const attentionOnly = params.view === "attention";
+  const bills = await listBills(user.id, selectedClient?.id, attentionOnly);
 
   const rows: BillRow[] = bills.map((bill) => {
-    const parsed = bill.rawExtraction ? InvoiceSchema.safeParse(bill.rawExtraction) : null;
-    const invoice = parsed?.success ? parsed.data : null;
+    const raw = bill.rawExtraction;
+    const storedInvoices = raw && typeof raw === "object" && !Array.isArray(raw) ? raw.invoices : null;
+    const parsed = InvoiceSchema.safeParse(
+      storedInvoices && typeof storedInvoices === "object" && !Array.isArray(storedInvoices)
+        ? Object.values(storedInvoices)
+        : Array.isArray(raw) ? raw : [raw],
+    );
+    const invoices = parsed.success ? parsed.data : [];
+    const invoice = invoices.length === 1 ? invoices[0] : null;
+    const total = invoices.length > 0 && invoices.every((entry) => entry.grandTotal != null)
+      ? invoices.reduce((sum, entry) => sum + (entry.grandTotal ?? 0), 0)
+      : null;
 
     return {
       id: bill.id,
@@ -78,10 +89,10 @@ async function BillsContent({ searchParams }: BillsPageProps) {
       status: bill.status,
       receivedOn: formatDate(bill.receivedAt),
       kind: bill.mimeType === "application/pdf" ? "PDF" : "Image",
-      supplierName: invoice?.supplierName ?? null,
+      supplierName: invoices.length > 1 ? `${invoices.length} invoices` : invoice?.supplierName ?? null,
       invoiceNo: invoice?.invoiceNo ?? null,
       invoiceDate: invoice?.invoiceDate ?? null,
-      amount: invoice?.grandTotal != null ? formatCurrency(invoice.grandTotal) : null,
+      amount: total != null ? formatCurrency(total) : null,
       confidence: bill.confidence,
     };
   });
@@ -90,16 +101,29 @@ async function BillsContent({ searchParams }: BillsPageProps) {
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col">
-          <p className="font-medium">{selectedClient ? selectedClient.legalName : "All bills"}</p>
+          <p className="font-medium">
+            {attentionOnly ? "Bills needing attention" : selectedClient?.legalName ?? "All bills"}
+          </p>
           <p className="text-sm text-muted-foreground">
             {rows.length} {rows.length === 1 ? "bill" : "bills"}
             {selectedClient ? " received" : " from all clients"}
           </p>
         </div>
-        <BillsClientFilter
-          clients={clients.map((client) => ({ id: client.id, legalName: client.legalName }))}
-          value={selectedClient?.id ?? "all"}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          {attentionOnly && (
+            <Link
+              href={selectedClient ? `/bills?client=${encodeURIComponent(selectedClient.id)}` : "/bills"}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Clear attention filter
+            </Link>
+          )}
+          <BillsClientFilter
+            clients={clients.map((client) => ({ id: client.id, legalName: client.legalName }))}
+            value={selectedClient?.id ?? "all"}
+            attentionOnly={attentionOnly}
+          />
+        </div>
       </div>
 
       {rows.length > 0 ? (
@@ -110,9 +134,11 @@ async function BillsContent({ searchParams }: BillsPageProps) {
             <div className="flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
               <FileTextIcon className="size-5" />
             </div>
-            <p className="font-medium">No bills yet</p>
+            <p className="font-medium">{attentionOnly ? "No bills need attention" : "No bills yet"}</p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              {selectedClient
+              {attentionOnly
+                ? "Bills with failed or uncertain extraction appear here."
+                : selectedClient
                 ? `${selectedClient.legalName} hasn't sent any bills yet.`
                 : "Bills your clients send on WhatsApp will appear here."}
             </p>
