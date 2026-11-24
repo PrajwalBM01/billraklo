@@ -314,9 +314,6 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.1169.0
         version: 3.1169.0
-      '@billraklo/core':
-        specifier: 'link:'
-        version: 'link:'
       '@prisma/adapter-neon':
         specifier: ^7.10.1
         version: 7.10.1
@@ -5323,6 +5320,7 @@ snapshots:
     optionalDependencies:
       prisma: 7.10.1(@types/node@26.6.6)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@7.0.2)
       typescript: 7.0.2
+    optional: true
 
   '@prisma/config@7.10.1':
     dependencies:
