@@ -4,6 +4,7 @@ import { createGoogle } from "@ai-sdk/google";
 import { env } from "../env";
 import {
   EXTRACT_PROMPT,
+  extractedRupeesToPaise,
   getObject,
   InvoiceSchema,
   type Invoice,
@@ -184,15 +185,15 @@ export async function extractBill(billId: string) {
     include: { client: true },
   });
   if (!bill) return { skipped: true };
-  // Idempotent: never re-extract a bill a human has already touched.
-  if (bill.status === "needs_review" || bill.status === "confirmed")
+  if (bill.status !== "stored" && bill.status !== "extracting")
     return { skipped: true };
-  if (!bill.fileKey) throw new UnrecoverableError("Bill has no stored file");
+  if (!bill.fileKey || !bill.mimeType) throw new UnrecoverableError("Bill has no stored file");
 
-  await prisma.bill.update({
-    where: { id: bill.id },
+  const started = await prisma.bill.updateMany({
+    where: { id: bill.id, status: { in: ["stored", "extracting"] } },
     data: { status: "extracting" },
   });
+  if (!started.count) return { skipped: true };
 
   const original = await getObject(bill.fileKey);
   const input =
@@ -211,34 +212,9 @@ export async function extractBill(billId: string) {
   const confidence = consolidateConfidence(invoices);
   const rawExtraction = toRawExtraction(invoices);
 
-  await prisma.$transaction([
-    ...invoices.map((invoice) =>
-      prisma.billEntry.create({
-        data: {
-          billId: bill.id,
-          supplierGstin: invoice.supplierGstin,
-          supplierName: invoice.supplierName,
-          buyerGstin: invoice.buyerGstin,
-          invoiceNo: invoice.invoiceNo,
-          invoiceDate: invoice.invoiceDate,
-          cgstPaise: invoice.cgst,
-          igstPaise: invoice.igst,
-          sgstPaise: invoice.sgst,
-          totalPaise: invoice.grandTotal,
-          taxablePaise: invoice.taxableTotal,
-          lines: {
-            create: invoice.lines.map((line) => ({
-              description: line.description,
-              hsn: line.hsn,
-              taxable: line.taxable,
-              ratePct: line.ratePct,
-            })),
-          },
-        },
-      }),
-    ),
-    prisma.bill.update({
-      where: { id: bill.id },
+  const saved = await prisma.$transaction(async (transaction) => {
+    const claimed = await transaction.bill.updateMany({
+      where: { id: bill.id, status: "extracting" },
       data: {
         status: "extracted",
         confidence,
@@ -248,11 +224,42 @@ export async function extractBill(billId: string) {
         inputTokens: extracted.usage.inputTokens,
         outputToken: extracted.usage.outputTokens,
       },
-    }),
-  ]);
+    });
+    if (!claimed.count) return false;
 
-  // Best-effort: the bill is already persisted, so a WhatsApp failure must not
-  // fail the job. A BullMQ retry would re-run extraction and duplicate entries.
+    await transaction.bill.update({
+      where: { id: bill.id },
+      data: {
+        billEntries: {
+          create: invoices.map((invoice) => ({
+            supplierGstin: invoice.supplierGstin,
+            supplierName: invoice.supplierName,
+            buyerGstin: invoice.buyerGstin,
+            invoiceNo: invoice.invoiceNo,
+            invoiceDate: invoice.invoiceDate,
+            cgstPaise: extractedRupeesToPaise(invoice.cgst),
+            igstPaise: extractedRupeesToPaise(invoice.igst),
+            sgstPaise: extractedRupeesToPaise(invoice.sgst),
+            totalPaise: extractedRupeesToPaise(invoice.grandTotal),
+            taxablePaise: extractedRupeesToPaise(invoice.taxableTotal),
+            lines: {
+              create: invoice.lines.map((line) => ({
+                description: line.description,
+                hsn: line.hsn,
+                taxable: line.taxable,
+                ratePct: line.ratePct,
+              })),
+            },
+          })),
+        },
+      },
+    });
+    return true;
+  });
+  if (!saved) return { skipped: true };
+
+  // The extraction is committed. Deliver WhatsApp confirmation separately.
+  if (!bill.waMsgId) return { extracted: true };
   try {
     await notifyClient(
       bill.client.whatsappPhone,

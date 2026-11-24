@@ -25,7 +25,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-7">
       <header>
         <h1 className="font-heading text-3xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Track bills collected on WhatsApp.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Track your bills and what needs review.</p>
       </header>
       <Suspense fallback={<DashboardSkeleton />}>
         <DashboardContent />
@@ -67,7 +67,7 @@ async function DashboardContent() {
         status: true,
         confidence: true,
         mimeType: true,
-        client: { select: { id: true, legalName: true } },
+        client: { select: { legalName: true } },
       },
     }),
   ]);
@@ -104,7 +104,7 @@ async function DashboardContent() {
                 <h2 className="font-semibold">
                   {countFormatter.format(attentionCount)} {attentionCount === 1 ? "bill needs" : "bills need"} attention
                 </h2>
-                <p className="text-sm text-amber-900 dark:text-amber-200">Check bills with failed or uncertain extraction.</p>
+                <p className="text-sm text-amber-900 dark:text-amber-200">Check bills with missing details or extraction issues.</p>
               </div>
             </div>
             <Link href="/bills?view=attention" className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -117,7 +117,7 @@ async function DashboardContent() {
       <Card className="gap-4">
         <CardHeader className="gap-x-3">
           <CardTitle><h2 className="text-lg font-semibold">Recent bills</h2></CardTitle>
-          <CardDescription>Latest WhatsApp submissions</CardDescription>
+          <CardDescription>Latest WhatsApp and manual submissions</CardDescription>
           {recentBills.length > 0 && (
             <CardAction>
               <Link href="/bills" className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -135,11 +135,11 @@ async function DashboardContent() {
                     <ReceiptText aria-hidden="true" className="size-4" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <Link href={`/bills?client=${encodeURIComponent(bill.client.id)}`} className="block truncate font-medium hover:underline">
+                    <Link href={`/bills/${encodeURIComponent(bill.id)}`} className="block truncate font-medium hover:underline">
                       {bill.client.legalName}
                     </Link>
                     <p className="text-xs text-muted-foreground">
-                      {bill.mimeType === "application/pdf" ? "PDF" : "Image"} · <time dateTime={bill.receivedAt.toISOString()}>{formatDate(bill.receivedAt)}</time>
+                      {bill.mimeType === "application/pdf" ? "PDF" : bill.mimeType ? "Image" : "Manual entry"} · <time dateTime={bill.receivedAt.toISOString()}>{formatDate(bill.receivedAt)}</time>
                     </p>
                   </div>
                   <BillStatusBadge status={bill.status} confidence={bill.confidence} />

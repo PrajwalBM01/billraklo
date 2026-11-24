@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Suspense>
         <SidebarInset>
           <AppMobileHeader />
-          <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 sm:p-8">
+          <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 sm:p-8 has-[[data-bill-workspace]]:max-w-7xl">
             {children}
           </main>
         </SidebarInset>

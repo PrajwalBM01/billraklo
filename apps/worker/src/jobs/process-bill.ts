@@ -1,11 +1,11 @@
 import {
-  MAX_MEDIA_BYTES,
   downloadMedia,
   prisma,
   sendText,
   putObject,
   WhatsAppMediaError,
   getBillQueue,
+  isUniqueViolation,
 } from "@billraklo/core";
 import crypto from "crypto";
 import { isValidBill } from "../helpers/ai";
@@ -24,10 +24,14 @@ export async function processBill(billId: string) {
     include: { client: true },
   });
 
+  if (bill?.status === "stored" && bill.waMsgId) {
+    await enqueueExtraction(bill.id);
+    return { stored: true };
+  }
   if (!bill || bill.status !== "received") return { skipped: true };
 
   //unsupported files get failed
-  if (!ALLOWED_MIME.has(bill.mimeType)) {
+  if (!bill.mimeType || !bill.waMediaId || !bill.waMsgId || !ALLOWED_MIME.has(bill.mimeType)) {
     throw new UnrecoverableError(`Unsupported file type: ${bill.mimeType}`);
   }
 
@@ -45,23 +49,37 @@ export async function processBill(billId: string) {
   //after we get the downloaded content
   const hash = crypto.createHash("sha256").update(bytes).digest("hex");
 
-  // Fast path: same content already stored for this client. (P1-4 makes the
-  // claim atomic; until then this check is an optimisation only.)
-  const earlier = await prisma.bill.findFirst({
+  const findEarlierBill = () => prisma.bill.findFirst({
     where: { clientId: bill.clientId, fileHash: hash, NOT: { id: bill.id } },
-    select: { id: true },
+    select: { fileKey: true, mimeType: true },
   });
-  if (earlier) {
-    await prisma.bill.update({
-      where: { id: bill.id },
-      data: { status: "duplicate", error: null },
+
+  const markDuplicate = async (original: { fileKey: string | null; mimeType: string | null }) => {
+    const changed = await prisma.bill.updateMany({
+      where: { id: bill.id, status: "received" },
+      data: { status: "duplicate", error: null, fileKey: original.fileKey, mimeType: original.mimeType },
     });
-    await sendText(
-      bill.client.whatsappPhone,
-      "You've already sent this bill, so no need to send it again 👍",
-      bill.waMsgId,
-    );
+    if (!changed.count) return { skipped: true };
+    await sendText(bill.client.whatsappPhone, "You've already sent this bill, so no need to send it again.", bill.waMsgId ?? undefined);
     return { duplicate: true };
+  };
+
+  const earlier = await findEarlierBill();
+  if (earlier) return markDuplicate(earlier);
+
+  const key = `clients/${bill.clientId}/${hash}.${bill.mimeType.split("/")[1]}`;
+  await putObject(key, bytes, bill.mimeType);
+  try {
+    const claimed = await prisma.bill.updateMany({
+      where: { id: bill.id, status: "received" },
+      data: { fileKey: key, fileHash: hash },
+    });
+    if (!claimed.count) return { skipped: true };
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    const duplicate = await findEarlierBill();
+    if (!duplicate) throw error;
+    return markDuplicate(duplicate);
   }
 
   const validBill = await isValidBill(
@@ -70,10 +88,11 @@ export async function processBill(billId: string) {
     bill.mimeType,
   );
   if (!validBill) {
-    await prisma.bill.update({
-      where: { id: bill.id },
+    const changed = await prisma.bill.updateMany({
+      where: { id: bill.id, status: "received" },
       data: { status: "failed", error: "Unprocessable bill" },
     });
+    if (!changed.count) return { skipped: true };
     await sendText(
       bill.client.whatsappPhone,
       "This doesn't seem to be a processable bill",
@@ -82,24 +101,20 @@ export async function processBill(billId: string) {
     return { skipped: true };
   }
 
-  // Key shape stays as-is until P1-3 (`{period}/{hash}.{ext}`);
-  // the bucket now comes from env inside putObject.
-  const key = `clients/${bill.clientId}/${hash}.${bill.mimeType.split("/")[1] ?? "bin"}`;
-
-  // No try/catch: if the upload fails, this job MUST fail so BullMQ retries
-  // and the failed-handler marks the bill failed. That is the whole fix.
-  await putObject(key, bytes, bill.mimeType);
-
-  await prisma.bill.update({
-    where: { id: bill.id },
-    data: { fileKey: key, fileHash: hash, status: "stored" },
+  const changed = await prisma.bill.updateMany({
+    where: { id: bill.id, status: "received" },
+    data: { status: "stored" },
   });
+  if (!changed.count) return { skipped: true };
 
-  await getBillQueue().add(
+  await enqueueExtraction(bill.id);
+  return { stored: true };
+}
+
+function enqueueExtraction(billId: string) {
+  return getBillQueue().add(
     "extract",
-    { billId: bill.id },
-    { jobId: `extract-${bill.id}` },
+    { billId },
+    { jobId: `extract-${billId}` },
   );
-
-  return { stored: key };
 }

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
-import { FileTextIcon, UsersIcon } from "lucide-react";
-import { InvoiceSchema, listBills, listClients } from "@billraklo/core";
+import { FileTextIcon, Plus, UsersIcon } from "lucide-react";
+import { canReviewBill, listBills, listClients, parseStoredInvoices } from "@billraklo/core";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -23,7 +23,7 @@ export default function BillsPage({ searchParams }: BillsPageProps) {
       <div className="flex flex-col gap-1">
         <h1 className="font-heading text-2xl font-semibold tracking-tight">Bills</h1>
         <p className="text-sm text-muted-foreground">
-          Bills your clients send on WhatsApp, with their latest processing status.
+          Review bills received on WhatsApp or added manually.
         </p>
       </div>
       <Suspense
@@ -70,14 +70,12 @@ async function BillsContent({ searchParams }: BillsPageProps) {
   const bills = await listBills(user.id, selectedClient?.id, attentionOnly);
 
   const rows: BillRow[] = bills.map((bill) => {
-    const raw = bill.rawExtraction;
-    const storedInvoices = raw && typeof raw === "object" && !Array.isArray(raw) ? raw.invoices : null;
-    const parsed = InvoiceSchema.safeParse(
-      storedInvoices && typeof storedInvoices === "object" && !Array.isArray(storedInvoices)
-        ? Object.values(storedInvoices)
-        : Array.isArray(raw) ? raw : [raw],
-    );
-    const invoices = parsed.success ? parsed.data : [];
+    const invoices = bill.billEntries.length || bill.status === "confirmed"
+      ? bill.billEntries.map(({ totalPaise, ...entry }) => ({
+        ...entry,
+        grandTotal: totalPaise == null ? null : Number(totalPaise) / 100,
+      }))
+      : parseStoredInvoices(bill.rawExtraction);
     const invoice = invoices.length === 1 ? invoices[0] : null;
     const total = invoices.length > 0 && invoices.every((entry) => entry.grandTotal != null)
       ? invoices.reduce((sum, entry) => sum + (entry.grandTotal ?? 0), 0)
@@ -87,13 +85,14 @@ async function BillsContent({ searchParams }: BillsPageProps) {
       id: bill.id,
       clientName: bill.client.legalName,
       status: bill.status,
+      canReview: canReviewBill(bill.status, bill.waMsgId),
       receivedOn: formatDate(bill.receivedAt),
-      kind: bill.mimeType === "application/pdf" ? "PDF" : "Image",
+      kind: bill.mimeType === "application/pdf" ? "PDF" : bill.mimeType ? "Image" : "Manual entry",
       supplierName: invoices.length > 1 ? `${invoices.length} invoices` : invoice?.supplierName ?? null,
       invoiceNo: invoice?.invoiceNo ?? null,
       invoiceDate: invoice?.invoiceDate ?? null,
       amount: total != null ? formatCurrency(total) : null,
-      confidence: bill.confidence,
+      confidence: bill.status === "confirmed" ? null : bill.confidence,
     };
   });
 
@@ -110,6 +109,12 @@ async function BillsContent({ searchParams }: BillsPageProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={selectedClient ? `/bills/new?client=${encodeURIComponent(selectedClient.id)}` : "/bills/new"}
+            className={buttonVariants({ size: "sm" })}
+          >
+            <Plus aria-hidden="true" /> Add bill
+          </Link>
           {attentionOnly && (
             <Link
               href={selectedClient ? `/bills?client=${encodeURIComponent(selectedClient.id)}` : "/bills"}
@@ -137,7 +142,7 @@ async function BillsContent({ searchParams }: BillsPageProps) {
             <p className="font-medium">{attentionOnly ? "No bills need attention" : "No bills yet"}</p>
             <p className="max-w-sm text-sm text-muted-foreground">
               {attentionOnly
-                ? "Bills with failed or uncertain extraction appear here."
+                ? "Bills with missing details or extraction issues appear here."
                 : selectedClient
                 ? `${selectedClient.legalName} hasn't sent any bills yet.`
                 : "Bills your clients send on WhatsApp will appear here."}

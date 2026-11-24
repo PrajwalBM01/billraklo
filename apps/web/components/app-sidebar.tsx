@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -56,14 +56,9 @@ type SidebarUser = {
 };
 
 export function AppSidebar({ user }: { user?: SidebarUser }) {
-  const pathname = usePathname();
   const { isMobile, openMobile, setOpenMobile, state, toggleSidebar } = useSidebar();
   const [signingOut, setSigningOut] = useState(false);
   const sidebarOpen = isMobile ? openMobile : state === "expanded";
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -105,21 +100,9 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {navigation.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                    render={<Link href={item.href} />}
-                    onClick={() => setOpenMobile(false)}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            <Suspense fallback={<SidebarLinks onNavigate={() => setOpenMobile(false)} />}>
+              <ActiveSidebarLinks onNavigate={() => setOpenMobile(false)} />
+            </Suspense>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
@@ -186,6 +169,30 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
 
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+function ActiveSidebarLinks({ onNavigate }: { onNavigate: () => void }) {
+  return <SidebarLinks pathname={usePathname()} onNavigate={onNavigate} />;
+}
+
+function SidebarLinks({ pathname, onNavigate }: { pathname?: string; onNavigate: () => void }) {
+  return (
+    <SidebarMenu>
+      {navigation.map((item) => (
+        <SidebarMenuItem key={item.href}>
+          <SidebarMenuButton
+            isActive={pathname === item.href || pathname?.startsWith(`${item.href}/`)}
+            tooltip={item.title}
+            render={<Link href={item.href} />}
+            onClick={onNavigate}
+          >
+            <item.icon />
+            <span>{item.title}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
   );
 }
 
