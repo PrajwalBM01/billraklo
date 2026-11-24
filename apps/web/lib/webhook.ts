@@ -111,18 +111,42 @@ export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
     try {
       const bill = await prisma.bill.create({
         data: {
-          waMsgId:message.id,
+          waMsgId: message.id,
           clientId: client.id,
           mimeType: mediaInfo.mime_type,
           waMediaId: mediaInfo.id,
         },
       });
 
-      await getBillQueue().add(
-        "process",
-        { billId: bill.id },
-        { jobId: bill.id },
+      // await getBillQueue().add(
+      //   "process",
+      //   { billId: bill.id },
+      //   { jobId: bill.id },
+      // );
+
+      const res = await fetch(
+        `${process.env.WORKER_API_URL}/api/internal/queue/bills`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": process.env.WORKER_API_SECRET!,
+          },
+          body: JSON.stringify({
+            billId: bill.id,
+            action: "process",
+          }),
+          cache: "no-store",
+        },
       );
+
+      if (!res.ok) {
+        console.error(
+          "Couldn't register bill job",
+          res.status,
+          await res.text(),
+        );
+      }
 
       await sendText(message.from, "Received ✅ Reading your bill…");
     } catch (error) {

@@ -11,6 +11,9 @@ import { Worker } from "bullmq";
 import { processBill } from "./jobs/process-bill";
 import { sweepStuckBills } from "./jobs/sweep";
 import { extractBill } from "./jobs/extract";
+import { env } from "./env";
+import { api } from "./api";
+import { serve } from "@hono/node-server";
 
 const bills = new Worker<BillJob>(
   BILLS_QUEUE,
@@ -63,6 +66,13 @@ bills.on("failed", async (job, err) => {
 //   { name: "sweep" },
 // );
 
+const server = serve(
+  { fetch: api.fetch, port: env.WORKER_API_PORT },
+  (info) => {
+    console.log(`Worker API listening on http://localhost:${info.port}`);
+  },
+);
+
 console.log("Worker started, waiting for jobs…");
 
 async function shutdown() {
@@ -70,6 +80,7 @@ async function shutdown() {
     bills.close(),
     // maintenance.close()
   ]); // finish running jobs first
+  server.close();
   process.exit(0);
 }
 process.on("SIGTERM", shutdown);

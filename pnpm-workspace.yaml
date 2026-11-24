@@ -3,7 +3,7 @@ packages:
   - "packages/*"
 
 allowBuilds:
-  '@prisma/engines': true
+  "@prisma/engines": true
   esbuild: true
   msgpackr-extract: true
   prisma: true
@@ -11,6 +11,7 @@ allowBuilds:
 
 catalog:
   typescript: "^7.0.2"
-  '@types/node': "^26.6.6"
+  "@types/node": "^26.6.6"
   bullmq: "^6.7.4"
   ioredis: "^6.0.0"
+  better-auth: "^1.7.18"
