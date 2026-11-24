@@ -1,11 +1,18 @@
 {
-    "name": "billraklo",
-    "private": true,
-    "packageManager": "pnpm@12.8.1",
-    "scripts": {
-      "dev": "pnpm -r --parallel dev",
-      "typecheck": "pnpm -r typecheck",
-      "lint": "pnpm -r lint",
-      "build": "pnpm -r build"
-    }
+  "name": "billraklo",
+  "private": true,
+  "packageManager": "pnpm@12.8.1",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "build": "pnpm -r build",
+    "db:generate": "pnpm --filter @billraklo/core exec prisma generate",
+    "db:migrate": "pnpm --filter @billraklo/core exec prisma migrate deploy",
+    "build:web": "pnpm --filter @billraklo/web build",
+    "start:worker": "pnpm --filter @billraklo/worker start"
+  },
+  "engines": {
+    "node": ">=22"
   }
+}

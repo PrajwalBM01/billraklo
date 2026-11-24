@@ -12,15 +12,18 @@
     "@ai-sdk/google": "^4.0.121",
     "@billraklo/core": "workspace:*",
     "@google/genai": "^3.3.0",
+    "@hono/node-server": "^2.1.11",
     "ai": "^7.0.173",
+    "better-auth": "catalog:",
     "bullmq": "catalog:",
     "dotenv": "^18.0.10",
+    "hono": "^4.13.20",
     "sharp": "^0.35.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "tsx": "^4.23.15",
+    "tsx": "4.23.15",
     "typescript": "catalog:"
   }
 }
