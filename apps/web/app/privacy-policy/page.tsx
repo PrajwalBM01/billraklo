@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cacheLife } from "next/cache";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import Link from "next/link";
@@ -14,6 +15,10 @@ export const metadata: Metadata = {
 };
 
 export default async function PrivacyPolicyPage() {
+  "use cache";
+  // The policy is deployment content, so include it in the prerendered page.
+  cacheLife("max");
+
   const policy = await readFile(path.join(process.cwd(), "public", "policy.md"), "utf8");
 
   return (
