@@ -45,17 +45,24 @@ bills.on("failed", async (job, err) => {
     const bill = await prisma.bill.update({
       where: {
         id: job.data.billId,
-        status: { in: job.name === "extract" ? ["stored", "extracting"] : ["received", "stored"] },
+        status: {
+          in:
+            job.name === "extract"
+              ? ["stored", "extracting"]
+              : ["received", "stored"],
+        },
       },
       data: { status: "failed", error: err.message },
       include: { client: true },
     });
-    if (bill.waMsgId) await sendText(
-      bill.client.whatsappPhone,
-      "Sorry, I couldn't open that file. Please send the bill again.",
-    );
+    if (bill.waMsgId)
+      await sendText(
+        bill.client.whatsappPhone,
+        "Sorry, I couldn't open that file. Please send the bill again.",
+      );
   } catch (e) {
-    if (!isPrismaError(e, "P2025")) console.error("[bills] could not record failure", e);
+    if (!isPrismaError(e, "P2025"))
+      console.error("[bills] could not record failure", e);
   }
 });
 
@@ -71,7 +78,7 @@ bills.on("failed", async (job, err) => {
 // );
 
 const server = serve(
-  { fetch: api.fetch, port: env.WORKER_API_PORT },
+  { fetch: api.fetch, port: Number(process.env.PORT ?? env.WORKER_API_PORT) },
   (info) => {
     console.log(`Worker API listening on http://localhost:${info.port}`);
   },

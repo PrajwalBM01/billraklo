@@ -7,6 +7,8 @@ dist
 build
 *.tsbuildinfo
 .env
+.env.prod
+.env.dev
 .env*.local
 !.env.example
 npm-debug.log*
