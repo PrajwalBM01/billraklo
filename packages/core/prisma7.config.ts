@@ -3,12 +3,18 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+// Migrations must run against a direct (unpooled) connection.
+// Neon's pooled endpoint (-pooler) goes through PgBouncer, which can break
+// DDL and prepared statements. Fall back to DATABASE_URL for local setups
+// that only define one URL.
+const datasourceUrl = process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"];
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    url: datasourceUrl,
   },
 });
