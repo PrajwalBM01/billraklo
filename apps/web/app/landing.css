@@ -34,7 +34,7 @@
 }
 
 .dd-brand { font-family: var(--font-bricolage), sans-serif; display: inline-flex; align-items: center; gap: 9px; font-size: 1.375rem; font-weight: 700; }
-.dd-mark { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 9px; color: #073b2c; background: #58d3a9; }
+.dd-mark { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 9px; color: #073b2c; background: #e5f7ed; }
 .dd-account { display: flex; align-items: center; gap: 12px; }
 .dd-login, .dd-start { display: inline-flex; justify-content: center; align-items: center; min-height: 36px; padding: 7px 15px; border-radius: 7px; font-size: .8125rem; font-weight: 600; }
 .dd-login { color: var(--dd-green); background: #fff; border: 1px solid #77a99d; }
@@ -117,7 +117,7 @@
 @media (max-width: 767px) {
   .dd-header { padding: 10px 7%; }
   .dd-brand { font-size: 1.25rem; }
-  .dd-mark { gap: 2px; transform: scale(.85); transform-origin: left center; width: 23px; }
+  .dd-mark { width: 32px; height: 32px; }
   .dd-main { padding-top: 12px; }
   .dd-intro { padding: 0 7%; }
   .dd-eyebrow { font-size: .6875rem; margin-bottom: 12px; }
@@ -146,3 +146,10 @@
 }
 
 .dd-feature-icon svg { width: 20px; height: 20px; }
+
+.dd-mark img { display: block; width: 100%; height: 100%; }
+
+.dd-footer { position: relative; z-index: 1; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 6% 12px; font-size: .75rem; line-height: 1.5; }
+.dd-footer span { color: #deeee7; }
+.dd-footer a { color: var(--dd-muted); text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 991px) { .dd-footer { padding-inline: 7%; } .dd-footer a { color: #deeee7; } }

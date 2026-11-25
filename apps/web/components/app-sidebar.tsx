@@ -10,11 +10,11 @@ import {
   LayoutDashboardIcon,
   LogOutIcon,
   PanelLeftCloseIcon,
-  ReceiptTextIcon,
   SettingsIcon,
   UsersIcon,
 } from "lucide-react";
 import { UserAvatar } from "@/components/auth/user-avatar";
+import { BrandLogo } from "@/components/brand-logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,8 +83,8 @@ export function AppSidebar({ user }: { user?: SidebarUser }) {
               aria-expanded={sidebarOpen}
               onClick={toggleSidebar}
             >
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <ReceiptTextIcon />
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#e5f7ed]">
+                <BrandLogo className="size-8" />
               </div>
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate font-heading text-base font-semibold tracking-tight">
@@ -207,8 +207,9 @@ export function AppMobileHeader() {
       <button
         type="button"
         onClick={toggleSidebar}
-        className="font-heading text-base font-semibold tracking-tight"
+        className="inline-flex items-center gap-2 font-heading text-base font-semibold tracking-tight"
       >
+        <BrandLogo className="size-7 rounded-md bg-[#e5f7ed]" />
         Billraklo
       </button>
     </header>

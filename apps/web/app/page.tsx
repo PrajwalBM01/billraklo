@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Bricolage_Grotesque, Public_Sans } from "next/font/google";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ArrowRight, ClipboardCheck, FileScan, Menu, MessageCircle, ReceiptText } from "lucide-react";
+import { ArrowRight, ClipboardCheck, FileScan, Menu, MessageCircle } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { LandingDemo } from "@/components/landing-demo";
 import landingImage from "../public/landing.webp";
 import "./landing.css";
@@ -25,7 +26,7 @@ export default function Home() {
     <div className={`dd-landing ${display.variable} ${body.variable}`}>
       <header className="dd-header">
         <Link href="/" className="dd-brand" aria-label="Billraklo home">
-          <span className="dd-mark" aria-hidden="true"><ReceiptText size={21} /></span>
+          <span className="dd-mark" aria-hidden="true"><BrandLogo /></span>
           Billraklo
         </Link>
         <nav className="dd-account" aria-label="Account"><AccountLinks /></nav>
@@ -58,6 +59,10 @@ export default function Home() {
           <Image src={landingImage} alt="Paper documents on the left become a digital dashboard on a laptop on the right." sizes="(max-width: 991px) 100vw, (max-width: 1222px) 72vw, 880px" preload className="dd-image" />
         </div>
       </main>
+      <footer className="dd-footer">
+        <span>Billraklo</span>
+        <Link href="/privacy-policy">Privacy policy</Link>
+      </footer>
     </div>
   );
 }
