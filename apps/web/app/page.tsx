@@ -5,6 +5,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ArrowRight, ClipboardCheck, FileScan, Menu, MessageCircle } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { LandingDemo } from "@/components/landing-demo";
+import { LandingGuide } from "@/components/landing-guide";
 import landingImage from "../public/landing.webp";
 import "./landing.css";
 
@@ -23,7 +24,8 @@ function AccountLinks() {
 
 export default function Home() {
   return (
-    <div className={`dd-landing ${display.variable} ${body.variable}`}>
+    <div id="top" className={`dd-landing ${display.variable} ${body.variable}`}>
+      <div className="dd-hero">
       <header className="dd-header">
         <Link href="/" className="dd-brand" aria-label="Billraklo home">
           <span className="dd-mark" aria-hidden="true"><BrandLogo /></span>
@@ -59,9 +61,35 @@ export default function Home() {
           <Image src={landingImage} alt="Paper documents on the left become a digital dashboard on a laptop on the right." sizes="(max-width: 991px) 100vw, (max-width: 1222px) 72vw, 880px" preload className="dd-image" />
         </div>
       </main>
+      </div>
+      <LandingGuide />
       <footer className="dd-footer">
-        <span>Billraklo</span>
-        <Link href="/privacy-policy">Privacy policy</Link>
+        <div className="dd-footer-main">
+          <div className="dd-footer-about">
+            <Link href="#top" className="dd-brand" aria-label="Billraklo home">
+              <span className="dd-mark" aria-hidden="true"><BrandLogo /></span>
+              Billraklo
+            </Link>
+            <p>Less chasing bills.<br />More time for your business.</p>
+            <span>Collect on WhatsApp. Review in one place.</span>
+          </div>
+          <nav className="dd-footer-links" aria-labelledby="footer-explore">
+            <h2 id="footer-explore">Explore</h2>
+            <Link href="#top">Overview</Link>
+            <Link href="#how-it-works">How it works</Link>
+            <a href="https://github.com/PrajwalBM01/billraklo" target="_blank" rel="noopener noreferrer">GitHub</a>
+          </nav>
+          <nav className="dd-footer-links" aria-labelledby="footer-account">
+            <h2 id="footer-account">Your workspace</h2>
+            <Link href="/sign-up">Create an account</Link>
+            <Link href="/sign-in">Sign in</Link>
+          </nav>
+        </div>
+        <div className="dd-footer-bottom">
+          <p>&copy; 2026 Billraklo. All rights reserved.</p>
+          <p>Built by <a href="https://x.com/xshadowdev" target="_blank" rel="noopener noreferrer">xshadowdev</a></p>
+          <Link href="/privacy-policy">Privacy policy</Link>
+        </div>
       </footer>
     </div>
   );

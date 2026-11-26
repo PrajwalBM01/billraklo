@@ -1,0 +1,128 @@
+﻿.landing-guide {
+  --guide-bg: #f3f8f5;
+  --guide-text: #143d31;
+  --guide-muted: #5b7569;
+  --guide-line: #c9ddd1;
+  --guide-active: #fff;
+  --guide-accent: #00654d;
+  position: relative;
+  height: 900svh;
+  color: var(--guide-text);
+  background: var(--guide-bg);
+  overflow-anchor: none;
+}
+.guide-sticky { position: sticky; top: 0; height: 100svh; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: clamp(16px, 3svh, 32px); padding: clamp(24px, 4.5svh, 48px) 6% 28px; overflow: clip; }
+.guide-heading h2 { margin: 0; font-family: var(--font-bricolage), sans-serif; font-size: clamp(1.75rem, 2.8vw, 2.75rem); font-weight: 600; line-height: 1.1; letter-spacing: -.045em; }
+.guide-heading p { margin: 12px 0 0; color: var(--guide-muted); font-size: 1rem; }
+.guide-stage { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.4fr); grid-template-rows: minmax(0, 1fr); align-items: center; gap: 4%; min-height: 0; }
+
+/* A fixed grid cell keeps the image centre independent of the growing timeline. */
+.guide-visual { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+.guide-visual::before { content: ""; position: absolute; inset: 12% 5%; border-radius: 50%; background: radial-gradient(ellipse, #d8ebdf 0%, transparent 70%); pointer-events: none; }
+.guide-device-stage { position: absolute; inset: 0; display: grid; place-items: center; container-type: size; }
+.guide-device {
+  --frame-chrome: 28px;
+  --frame-max: 1100px;
+  position: relative;
+  /* Budget for frame/chrome before applying the original screenshot ratio. */
+  width: min(calc(100cqw - 24px), calc((100cqh - 38px - var(--frame-chrome)) * var(--screen-ratio) + 14px), var(--frame-max));
+  flex: none;
+  padding: 5px;
+  border: 2px solid #355c4c;
+  border-radius: 18px;
+  background: #183f31;
+  box-shadow: 0 24px 48px -30px #123d3066, 0 3px 8px #123d3014;
+}
+.guide-device-screen { overflow: hidden; border-radius: 0 0 10px 10px; background: #fff; }
+.guide-screenshot { display: block; width: 100%; height: auto; object-fit: contain; }
+.guide-browser-bar { height: var(--frame-chrome); display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-radius: 10px 10px 0 0; background: #edf3ef; color: #688174; font-size: 10px; }
+.guide-browser-bar > span { display: flex; align-items: center; gap: 5px; }
+.guide-browser-bar > span:last-child { width: 28px; }
+.guide-browser-dots i { width: 6px; height: 6px; border-radius: 50%; background: #b7cabf; }
+.guide-device--phone { --frame-chrome: 0px; --frame-max: 340px; border-radius: 35px; background: #101c17; border-color: #4d7060; box-shadow: 0 24px 48px -24px #123d3066, 0 0 0 1px #a4bbad; }
+.guide-device--phone .guide-device-screen { border-radius: 27px; background: #0b1215; }
+
+.guide-steps-panel { align-self: center; max-height: 100%; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--guide-line) transparent; padding: 12px 14px 12px 2px; }
+.guide-steps { margin: 0; padding: 0; list-style: none; }
+.guide-step { position: relative; margin: 0; padding: 0 18px 0 12px; }
+.guide-step[hidden] { display: none; }
+.guide-step::before { content: ""; position: absolute; top: 26px; bottom: -10px; left: 28px; width: 1px; background: var(--guide-line); }
+.guide-step-button { position: relative; z-index: 1; width: 100%; display: flex; align-items: center; gap: 16px; border: 0; padding: 5px 0; text-align: left; background: none; color: var(--guide-muted); cursor: pointer; }
+.guide-step-number { display: grid; place-items: center; flex: none; width: 34px; height: 28px; border: 1px solid var(--guide-line); border-radius: 9px; background: var(--guide-bg); color: var(--guide-muted); font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.guide-step-title { font-family: var(--font-bricolage), sans-serif; font-size: 1rem; line-height: 1.25; font-weight: 500; }
+.guide-step-check { margin-left: auto; flex: none; color: #43866a; }
+.guide-step.is-complete .guide-step-button:hover { color: var(--guide-accent); }
+.guide-step.is-active { margin-top: 14px; padding: 22px 22px 24px; border: 1px solid #cfdfd5; border-radius: 20px; background: var(--guide-active); box-shadow: 0 1px 2px rgb(20 61 49 / 4%); }
+.guide-step.is-active::before { top: -15px; bottom: auto; left: 28px; height: 14px; }
+.guide-step.is-active:first-child { margin-top: 0; }
+.guide-step.is-active:first-child::before { display: none; }
+.guide-step.is-active .guide-step-button { padding: 0; gap: 16px; color: var(--guide-text); }
+.guide-step.is-active .guide-step-number { width: 44px; height: 44px; border: 0; border-radius: 13px; color: white; background: var(--guide-accent); font-size: 1rem; box-shadow: 0 0 0 5px #00654d0a; }
+.guide-step.is-active .guide-step-title { font-size: clamp(1.5rem, 2.1vw, 2rem); line-height: 1.15; letter-spacing: -.035em; font-weight: 600; }
+.guide-step-detail p { margin: 16px 0 0 60px; font-size: clamp(.9375rem, 1.15vw, 1.0625rem); line-height: 1.65; color: var(--guide-muted); }
+
+.guide-end { padding: 56px 6%; display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 24px; background: #e2eee7; color: #143d31; }
+.guide-end p { font-family: var(--font-bricolage), sans-serif; font-size: 1.5rem; letter-spacing: -.025em; }
+.guide-end a { padding: 13px 20px; background: #005345; color: white; border-radius: 8px; font-size: .875rem; font-weight: 600; }
+.dark .landing-guide { --guide-bg: #12271e; --guide-text: #e6f1e9; --guide-muted: #adc4b6; --guide-line: #345443; --guide-active: #19372a; --guide-accent: #087254; }
+.dark .guide-step.is-active { border-color: #3a5d49; }
+.dark .guide-step.is-complete .guide-step-button:hover { color: #a7e9c4; }
+.dark .guide-visual::before { background: radial-gradient(ellipse, #28553c, transparent 70%); }
+.dark .guide-end { background: #193a2a; color: #e6f1e9; }
+
+@media (min-width: 701px) and (max-height: 740px) {
+  .guide-sticky { padding-top: 24px; gap: 16px; padding-bottom: 16px; }
+  .guide-step-button { padding-block: 3px; }
+  .guide-step.is-active { padding: 16px; margin-top: 10px; }
+  .guide-step.is-active .guide-step-number { width: 38px; height: 38px; }
+  .guide-step.is-active .guide-step-title { font-size: 1.5rem; }
+  .guide-step-detail p { margin: 12px 0 0 54px; font-size: .9375rem; line-height: 1.5; }
+}
+@media (max-width: 1000px) and (min-width: 701px) {
+  .guide-sticky { padding-inline: 4%; }
+  .guide-stage { grid-template-columns: minmax(270px, 1fr) minmax(0, 1.15fr); gap: 2%; }
+  .guide-step.is-active { padding: 18px; }
+  .guide-step-detail p { margin-left: 0; }
+}
+@media (max-width: 700px) {
+  .guide-sticky { padding: 24px 5% 18px; gap: 18px; }
+  .guide-heading h2 { max-width: 360px; font-size: 1.6rem; }
+  .guide-heading p { margin-top: 8px; font-size: .875rem; }
+  .guide-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: 236px minmax(0, 1fr); gap: 6px; }
+  .guide-steps-panel { align-self: start; width: 100%; padding: 5px; max-height: 236px; }
+  .guide-steps { display: flex; flex-wrap: wrap; gap: 5px; }
+  .guide-step { padding: 0; }
+  .guide-step::before { display: none; }
+  .guide-step.is-complete .guide-step-button { padding: 0; }
+  .guide-step.is-complete .guide-step-number { width: 27px; height: 25px; font-size: .625rem; border-radius: 7px; }
+  .guide-step.is-complete .guide-step-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .guide-step-check { display: none; }
+  .guide-step.is-active { flex: 1 0 100%; margin-top: 7px; padding: 17px; border-radius: 17px; }
+  .guide-step.is-active .guide-step-number { width: 36px; height: 36px; border-radius: 10px; font-size: .875rem; }
+  .guide-step.is-active .guide-step-button { gap: 12px; }
+  .guide-step.is-active .guide-step-title { font-size: 1.4rem; }
+  .guide-step-detail p { margin: 12px 0 0; font-size: .875rem; line-height: 1.55; }
+  .guide-device { --frame-chrome: 22px; border-radius: 13px; }
+  .guide-browser-bar { border-radius: 6px 6px 0 0; }
+  .guide-device-screen { border-radius: 0 0 6px 6px; }
+  .guide-device--phone { --frame-chrome: 0px; border-radius: 26px; }
+  .guide-device--phone .guide-device-screen { border-radius: 19px; }
+  .guide-end { flex-direction: column; padding: 40px 6%; text-align: center; gap: 18px; }
+}
+@media (max-width: 700px) and (max-height: 740px) {
+  .guide-sticky { padding-top: 18px; gap: 10px; }
+  .guide-heading h2 { font-size: 1.4rem; }
+  .guide-heading p { display: none; }
+  .guide-stage { grid-template-rows: 215px minmax(0, 1fr); }
+  .guide-steps-panel { max-height: 215px; }
+  .guide-step.is-active { padding: 13px; }
+  .guide-step-detail p { line-height: 1.45; margin-top: 10px; }
+}
+@media (max-height: 500px) and (min-width: 540px) {
+  .guide-sticky { padding: 16px 4%; gap: 8px; }
+  .guide-heading h2 { font-size: 1.4rem; }
+  .guide-heading p { display: none; }
+  .guide-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: minmax(0, 1fr); gap: 16px; }
+  .guide-steps-panel { align-self: center; max-height: 100%; }
+  .guide-step-detail p { font-size: .875rem; }
+}
