@@ -154,6 +154,71 @@ type GraphSendResponse = {
 };
 
 /**
+ * Sends normal text within the 24-hour customer service window.
+ * Returns the message ID for delivery tracking, or a readable failure.
+ */
+export async function sendTextMessage(
+  to: string,
+  body: string,
+): Promise<WhatsAppSendResult> {
+  let response: Response;
+  try {
+    response = await fetch(baseURL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "text",
+        text: { preview_url: false, body },
+      }),
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+    });
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "TimeoutError";
+    console.error("WhatsApp text send failed:", error);
+    return {
+      ok: false,
+      code: null,
+      reason: timedOut
+        ? "WhatsApp didn't respond in time."
+        : "Couldn't reach WhatsApp. Check the server's internet connection.",
+    };
+  }
+
+  const data = (await response
+    .json()
+    .catch(() => null)) as GraphSendResponse | null;
+
+  if (!response.ok) {
+    const code = data?.error?.code ?? null;
+    console.error("WhatsApp text send failed:", JSON.stringify(data));
+    return {
+      ok: false,
+      code,
+      reason: describeWhatsAppError(
+        code,
+        data?.error?.error_data?.details ?? data?.error?.message,
+      ),
+    };
+  }
+
+  const messageId = data?.messages?.[0]?.id;
+  if (!messageId) {
+    return {
+      ok: false,
+      code: null,
+      reason: "WhatsApp accepted the request but returned no message ID.",
+    };
+  }
+  return { ok: true, messageId };
+}
+
+/**
  * Sends an approved template, the only kind of message WhatsApp allows to a number
  * that hasn't messaged us in the last 24 hours. Never throws: failures come back as
  * a readable reason. `parameters` fill the template's named body variables, e.g.

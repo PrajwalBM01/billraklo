@@ -7,6 +7,7 @@ export {
   MAX_MEDIA_BYTES,
   WhatsAppMediaError,
   sendTemplate,
+  sendTextMessage,
   describeWhatsAppError,
   type WhatsAppSendResult,
 } from "./whatsapp";

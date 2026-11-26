@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { Prisma } from "../generated/prisma/client";
 import { prisma } from "./db";
-import { env } from "./env";
 import { normalizeIndianMobile } from "./phone";
-import { describeWhatsAppError, sendTemplate, type WhatsAppSendResult } from "./whatsapp";
+import { describeWhatsAppError, sendTextMessage, type WhatsAppSendResult } from "./whatsapp";
 import { isPrismaError } from "./prisma-error";
 
 // 2 digits state code, 10 character PAN, entity number, "Z", checksum.
@@ -102,18 +101,18 @@ export async function removeClient(userId: string, clientId: string) {
 }
 
 /**
- * Sends the welcome template to a client and records the outcome on the client row.
+ * Sends the welcome text to a client and records the outcome on the client row.
+ * WhatsApp requires the client to have messaged us within the last 24 hours.
  * Never throws, so the caller can always report what happened.
  */
 export async function sendClientWelcome(
   client: { id: string; whatsappPhone: string },
   addedBy: string,
 ): Promise<WhatsAppSendResult> {
-  const result = await sendTemplate(client.whatsappPhone, {
-    name: env.WHATSAPP_WELCOME_TEMPLATE,
-    language: env.WHATSAPP_WELCOME_TEMPLATE_LANG,
-    parameters: { user: addedBy },
-  });
+  const result = await sendTextMessage(
+    client.whatsappPhone,
+    `*Welcome to Billraklo!*\nYour Billraklo personal assistant account was added by ${addedBy}.\n\nYou may now submit your bills or invoices for automated processing.`,
+  );
 
   if (!result.ok) {
     console.error(`[whatsapp] Welcome to client ${client.id} failed: ${withCode(result.reason, result.code)}`);
