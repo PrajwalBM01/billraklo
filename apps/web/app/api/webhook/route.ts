@@ -1,131 +1,50 @@
-import {
-  handleMessages,
-  isMessageProcessed,
-  verfiyMetaSignature,
-} from "@/lib/webhook";
+import { handleMessages, verfiyMetaSignature } from "@/lib/webhook";
 import { NextRequest, NextResponse } from "next/server";
-import {
-  recordWelcomeStatus,
-  sendText,
-  prisma,
-  getBillQueue,
-} from "@billraklo/core";
+import { recordWelcomeStatus } from "@billraklo/core";
 import { WebhookPayloadSchema } from "@/lib/webhook-types";
 
-// 1. Verify webhook with Meta
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
-
   if (mode === "subscribe" && token === process.env.VERIFY_TOKEN) {
-    console.log("Webhook verified!");
-
-    return new NextResponse(challenge, {
-      status: 200,
-    });
+    return new NextResponse(challenge, { status: 200 });
   }
-
-  return new NextResponse("Forbidden", {
-    status: 403,
-  });
+  return new NextResponse("Forbidden", { status: 403 });
 }
 
-// 2. Receive incoming WhatsApp messages
 export async function POST(request: NextRequest) {
   try {
-    //recive the raw request
     const rawBody = Buffer.from(await request.arrayBuffer());
-    const header = request.headers.get("x-hub-signature-256") || "";
-
-    //verify
-    const verifyed = await verfiyMetaSignature(
-      rawBody,
-      header,
-      process.env.APP_SECRET!,
-    );
-
-    if (!verifyed) {
-      console.warn("Rejected webhook with invalid signature");
-      return NextResponse.json(
-        { success: false },
-        {
-          status: 401,
-        },
-      );
+    const signature = request.headers.get("x-hub-signature-256") || "";
+    if (!(await verfiyMetaSignature(rawBody, signature, process.env.APP_SECRET!))) {
+      return NextResponse.json({ success: false }, { status: 401 });
     }
 
-    //parse the incoming webhook event
-    console.log("Webhook received:", rawBody.toString("utf-8"));
-    const body = JSON.parse(rawBody.toString("utf-8"));
-    const parsedBody = WebhookPayloadSchema.safeParse(body);
-
-    if (!parsedBody.success) {
-      //parse failed means different body
-      console.log(
-        "Incoming payload unknown",
-        parsedBody.error,
-        parsedBody.data,
-      );
-      return NextResponse.json(
-        { success: true, unknown: true },
-        { status: 200 },
-      );
+    const parsed = WebhookPayloadSchema.safeParse(JSON.parse(rawBody.toString("utf-8")));
+    if (!parsed.success) {
+      console.warn("Unknown WhatsApp webhook payload", parsed.error);
+      return NextResponse.json({ success: true, unknown: true });
     }
-    
-    const value = parsedBody.data.entry[0].changes[0].value;
-     //handle statuses
-     if (value.statuses) {
-      for (const status of value.statuses ?? []) {
-        try {
+
+    for (const entry of parsed.data.entry) {
+      for (const change of entry.changes) {
+        const value = change.value;
+        if (value.metadata.phone_number_id !== process.env.PHONE_NUMBER_ID) continue;
+        for (const status of value.statuses ?? []) {
           await recordWelcomeStatus(status.id, status.status, {
             code: status.errors?.[0]?.code,
             details: status.errors?.[0]?.error_data?.details,
           });
-        } catch (error) {
-          console.error("Couldn't record message status:", error);
         }
+        if (value.messages) await handleMessages(value.messages);
+        if (value.errors) console.error("WhatsApp webhook errors", value.errors);
       }
     }
-
-    //1. store the incoming message id and check idempotancy
-    const processed = await isMessageProcessed(parsedBody.data);
-    if (processed) {
-      return NextResponse.json(
-        { success: true, duplicate: true },
-        { status: 200 },
-      );
-    }
-   
-
-    //2. filter the incoming msg into status and message
-   
-
-    //handling messages
-    if (value.messages) {
-      await handleMessages(value.messages);
-    }
-
-    if (value.errors) {
-      console.log("Something error came in webhook errors", value.errors);
-    }
-
-
-    // Acknowledge Meta
-    return NextResponse.json(
-      { success: true },
-      {
-        status: 200,
-      },
-    );
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Webhook error:", error);
-
-    return NextResponse.json(
-      { error: "Webhook processing failed" },
-      { status: 500 },
-    );
+    console.error("Webhook processing failed:", error);
+    return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }

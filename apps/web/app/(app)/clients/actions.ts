@@ -6,15 +6,14 @@ import {
   parseClientInput,
   removeClient,
   retryClientWelcome,
-  sendClientWelcome,
+  getClientInvitationUrl,
+  formatIndianMobile,
   type ClientField,
 } from "@billraklo/core";
 import { requireSession } from "@/lib/session";
 
-// WhatsApp failure details are logged on the server (see sendClientWelcome), never
-// sent to the browser: users only learn whether the welcome went out.
 export type AddClientResult =
-  | { ok: true; legalName: string; welcomeSent: boolean }
+  | { ok: true; legalName: string; phone: string; invitationUrl: string }
   | { ok: false; fieldErrors?: Partial<Record<ClientField, string>>; error?: string };
 
 // Server actions can be called directly with a POST, so each one re-checks the
@@ -25,6 +24,10 @@ export async function addClientAction(input: Record<ClientField, string>): Promi
 
   const parsed = parseClientInput(input);
   if (!parsed.success) return { ok: false, fieldErrors: parsed.fieldErrors };
+  const invitationUrl = getClientInvitationUrl();
+  if (!invitationUrl) {
+    return { ok: false, error: "WhatsApp invitations aren't set up yet. Please contact your administrator." };
+  }
 
   let created: Awaited<ReturnType<typeof createClient>>;
   try {
@@ -47,11 +50,9 @@ export async function addClientAction(input: Record<ClientField, string>): Promi
     };
   }
 
-  // The client is saved even if WhatsApp fails; it can be retried from the list.
-  const result = await sendClientWelcome(created.client, user.name);
   refresh();
 
-  return { ok: true, legalName: created.client.legalName, welcomeSent: result.ok };
+  return { ok: true, legalName: created.client.legalName, phone: formatIndianMobile(created.client.whatsappPhone), invitationUrl };
 }
 
 export async function retryWelcomeAction(clientId: string): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -63,8 +64,13 @@ export async function retryWelcomeAction(clientId: string): Promise<{ ok: true }
     if (!retried.ok) {
       return {
         ok: false,
-        error: retried.reason === "already-sent" ? "The welcome message was already sent." : "Client not found.",
+        error: retried.reason === "window-closed"
+          ? "Ask the client to message Billraklo again, then retry the welcome."
+          : retried.reason === "already-sent" ? "The welcome message was already sent or is being sent." : "Client not found.",
       };
+    }
+    if (retried.result.ok && "skipped" in retried.result) {
+      return { ok: false, error: "The welcome is already being handled, or the reply window has closed. Refresh the list." };
     }
     return retried.result.ok
       ? { ok: true }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { UsersIcon } from "lucide-react";
-import { formatIndianMobile, listClients } from "@billraklo/core";
+import { formatIndianMobile, getClientInvitationUrl, listClients } from "@billraklo/core";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { formatDate } from "@/lib/format";
@@ -18,7 +18,7 @@ export default function ClientsPage() {
         <div className="flex flex-col gap-1">
           <h1 className="font-heading text-2xl font-semibold tracking-tight">Clients</h1>
           <p className="text-sm text-muted-foreground">
-            Each client gets a WhatsApp welcome and can then forward their bills to Billraklo.
+            Add a client, share their invitation, and receive their bills on WhatsApp.
           </p>
         </div>
         <AddClientDialog />
@@ -51,7 +51,7 @@ async function ClientList() {
           </div>
           <p className="font-medium">No clients yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">
-            Add your first client with their WhatsApp number. Billraklo will message them right away.
+            Add your first client with their WhatsApp number, then share their invitation to connect.
           </p>
         </CardContent>
       </Card>
@@ -61,6 +61,7 @@ async function ClientList() {
   // Formatted here so the server and browser render identical text.
   return (
     <ClientsTable
+      invitationUrl={getClientInvitationUrl()}
       clients={clients.map((client) => ({
         id: client.id,
         legalName: client.legalName,
@@ -68,6 +69,8 @@ async function ClientList() {
         phone: formatIndianMobile(client.whatsappPhone),
         addedOn: formatDate(client.createdAt),
         welcomeStatus: client.welcomeStatus,
+        connected: client.connectedAt !== null,
+        canRetryWelcome: client.canRetryWelcome,
         bills: client._count.bills,
       }))}
     />

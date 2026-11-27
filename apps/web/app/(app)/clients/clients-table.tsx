@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { RotateCwIcon, Trash2Icon } from "lucide-react";
+import { CopyIcon, RotateCwIcon, Trash2Icon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -20,6 +21,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useResetOnHide } from "@/hooks/use-reset-on-hide";
 import { removeClientAction, retryWelcomeAction } from "./actions";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { InvitationDetails, invitationText } from "./invitation";
 
 export type ClientRow = {
   id: string;
@@ -28,18 +31,24 @@ export type ClientRow = {
   phone: string;
   addedOn: string;
   welcomeStatus: string;
+  connected: boolean;
+  canRetryWelcome: boolean;
   bills: number;
 };
 
 const statusLabels: Record<string, { label: string; variant: "secondary" | "outline" | "destructive" }> = {
-  pending: { label: "Not sent", variant: "outline" },
-  sent: { label: "Sent", variant: "secondary" },
-  delivered: { label: "Delivered", variant: "secondary" },
-  read: { label: "Read", variant: "secondary" },
-  failed: { label: "Failed", variant: "destructive" },
+  pending: { label: "Welcome pending", variant: "outline" },
+  sending: { label: "Sending welcome", variant: "outline" },
+  sent: { label: "Welcome sent", variant: "secondary" },
+  delivered: { label: "Welcome delivered", variant: "secondary" },
+  read: { label: "Welcome read", variant: "secondary" },
+  failed: { label: "Welcome failed", variant: "destructive" },
 };
 
-export function ClientsTable({ clients }: { clients: ClientRow[] }) {
+export function ClientsTable({ clients, invitationUrl }: { clients: ClientRow[]; invitationUrl: string | null }) {
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
+  const [inviting, setInviting] = useState<ClientRow | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [toRemove, setToRemove] = useState<ClientRow | null>(null);
   const [removing, startRemove] = useTransition();
@@ -48,6 +57,7 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
   useResetOnHide(() => {
     setRetryingId(null);
     setToRemove(null);
+    setInviting(null);
   });
 
   function retry(client: ClientRow) {
@@ -83,13 +93,21 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
 
   return (
     <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          {invitationUrl ? "Share the invitation, then refresh to check whether your client has connected." : "WhatsApp invitations aren't set up yet. Please contact your administrator."}
+        </p>
+        <Button variant="outline" size="sm" disabled={refreshing} onClick={() => startRefresh(() => router.refresh())}>
+          {refreshing ? <Spinner /> : <RotateCwIcon />} Refresh status
+        </Button>
+      </div>
       <Card className="py-0">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="pl-4">Client</TableHead>
               <TableHead>WhatsApp</TableHead>
-              <TableHead>Welcome</TableHead>
+              <TableHead>Connection</TableHead>
               <TableHead>Added</TableHead>
               <TableHead className="pr-4 text-right">
                 <span className="sr-only">Actions</span>
@@ -99,7 +117,7 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
           <TableBody>
             {clients.map((client) => {
               const status = statusLabels[client.welcomeStatus] ?? statusLabels.pending!;
-              const canRetry = client.welcomeStatus === "pending" || client.welcomeStatus === "failed";
+              const canRetry = client.canRetryWelcome;
 
               return (
                 <TableRow key={client.id}>
@@ -112,10 +130,13 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
                   <TableCell className="whitespace-nowrap">{client.phone}</TableCell>
                   <TableCell>
                     <div className="flex max-w-64 flex-col items-start gap-1">
-                      <Badge variant={status.variant}>{status.label}</Badge>
-                      {client.welcomeStatus === "failed" && (
+                      <Badge variant={client.connected ? "secondary" : "outline"}>
+                        {client.connected ? "Connected" : "Waiting for client"}
+                      </Badge>
+                      {client.connected && <Badge variant={status.variant}>{status.label}</Badge>}
+                      {client.connected && client.welcomeStatus === "failed" && (
                         <span className="text-xs whitespace-normal text-muted-foreground">
-                          Couldn&apos;t send the welcome message.
+                          {canRetry ? "Couldn't send the welcome message. You can retry." : "Ask the client to message Billraklo again to retry the welcome."}
                         </span>
                       )}
                     </div>
@@ -123,6 +144,17 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
                   <TableCell className="whitespace-nowrap text-muted-foreground">{client.addedOn}</TableCell>
                   <TableCell className="pr-4">
                     <div className="flex justify-end gap-1">
+                      <Button variant="outline" size="sm" disabled={!invitationUrl} onClick={async () => {
+                        if (!invitationUrl) return;
+                        try {
+                          await navigator.clipboard.writeText(invitationText(client.phone, invitationUrl));
+                          toast.success(`Invitation copied for ${client.legalName}. Paste it into your chat with them.`);
+                        } catch {
+                          setInviting(client);
+                        }
+                      }}>
+                        <CopyIcon /> Copy invitation
+                      </Button>
                       {canRetry && (
                         <Button
                           variant="outline"
@@ -131,7 +163,7 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
                           onClick={() => retry(client)}
                         >
                           {retryingId === client.id ? <Spinner /> : <RotateCwIcon />}
-                          Retry
+                          Retry welcome
                         </Button>
                       )}
                       <Button
@@ -150,6 +182,16 @@ export function ClientsTable({ clients }: { clients: ClientRow[] }) {
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog open={inviting !== null} onOpenChange={(open) => { if (!open) setInviting(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite {inviting?.legalName}</DialogTitle>
+            <DialogDescription>Copy the invitation and send it to your client.</DialogDescription>
+          </DialogHeader>
+          {inviting && invitationUrl && <InvitationDetails phone={inviting.phone} url={invitationUrl} />}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={toRemove !== null}

@@ -8,7 +8,7 @@ The application is under active development. The repository contains the web app
 
 ## Use cases and features
 
-- **Collect client bills:** register a client's legal name, GSTIN, and WhatsApp number, send a welcome template, and receive their invoice attachments.
+- **Collect client bills:** register a client's legal name, GSTIN, and WhatsApp number, share an invitation, and receive their invoice attachments after they message the bot.
 - **Extract invoice details:** process PDFs, JPEG, PNG, and WebP files; extract supplier and buyer GSTINs, invoice numbers and dates, line items, HSN codes, tax amounts, and totals. One document can produce multiple invoice entries.
 - **Review by client:** view the original document, correct extracted values, and confirm bills before reporting.
 - **Add bills through the dashboard:** upload documents for extraction or enter bill details manually. Web uploads are limited to 10 MB.
@@ -79,13 +79,13 @@ It is a library, not a third HTTP service. Prisma generates the client into `pac
 
 ## How a bill moves through the system
 
-1. An accountant registers a client and their WhatsApp number. The current phone-number helpers support Indian mobile numbers.
+1. An accountant registers a client and their WhatsApp number, then copies an invitation from the dashboard and shares it manually. The link opens the bot chat with a prefilled message; the client must press Send from their registered number. Their first message (or invoice) connects them and triggers the normal welcome reply. The current phone-number helpers support Indian mobile numbers.
 2. Meta delivers an image/PDF message to `/api/webhook`. The web app checks the signature, tracks the message ID, and matches the sender to a registered client.
 3. The web app creates a `Bill` record and asks the worker API to enqueue a `process` job.
 4. The consumer downloads the attachment from Meta, checks its type and size, hashes it, and stores the original in Supabase. Matching files for the same client are marked as duplicates.
 5. Gemini checks whether the document is processable as a bill. Valid documents are queued for extraction.
 6. Extraction loads the stored file, uses the configured Gemini model and structured invoice schema, and saves the extracted entries, confidence information, model information, and processing timestamps. Invoice summary amounts are stored as integer paise.
-7. WhatsApp-origin bills receive processing messages and extracted results. The accountant reviews the original and extracted data, makes corrections, and confirms the bill.
+7. WhatsApp-origin bills receive processing messages and extracted results while the client's 24-hour reply window is open. Results completed after the window closes remain available in the dashboard; no template is sent automatically. The accountant reviews the original and extracted data, makes corrections, and confirms the bill.
 8. Reviewed invoice entries feed the purchase register and exports.
 
 Dashboard uploads take a shorter path: the web app stores the file first and requests an `extract` job. Manual-entry mode starts in `needs_review` without requiring AI extraction.
@@ -159,7 +159,7 @@ For the complete workflow, configure:
 - A **Neon PostgreSQL database**. The current runtime uses `PrismaNeon`; a normal local PostgreSQL connection is not a drop-in replacement without changing the adapter or providing a compatible proxy.
 - A **Redis instance** reachable by both processes.
 - A **Supabase private Storage bucket**, its S3 endpoint/region, and S3 access credentials.
-- A **Meta app and WhatsApp Business Platform number**, access token, app secret, and approved welcome template.
+- A **Meta app and WhatsApp Business Platform number**, access token, and app secret. Onboarding does not require an approved template.
 - **Google OAuth credentials** for the configured sign-in provider.
 - A **Google Gemini API key** and an extraction model available to that project. The separate invoice-validation model is currently hard-coded as `gemini-decision-1` in `apps/worker/src/helpers/ai.ts` and also requires access.
 - A **Resend API key** for real email delivery. Local development can use verification codes printed in the web server console.
@@ -255,7 +255,11 @@ Meta cannot send webhooks directly to your machine's `localhost`. Expose **port 
 - Verification token: the same `VERIFY_TOKEN` set in the environment files.
 - The WhatsApp `messages` webhook subscription.
 
-Keep the tunnel running. The worker API can stay local because Next.js calls it server-to-server. Ensure the test sender is allowed by your Meta setup and registered as a client in Billraklo. Set `WHATSAPP_WELCOME_TEMPLATE` and `WHATSAPP_WELCOME_TEMPLATE_LANG` to the approved template and language in your business account.
+Keep the tunnel running. The worker API can stay local because Next.js calls it server-to-server. Ensure the test sender is allowed by your Meta setup and registered as a client in Billraklo. Set `WHATSAPP_BOT_NUMBER` to the actual bot number with its country code (digits only), distinct from Meta's `PHONE_NUMBER_ID`. Keep it consistent across the three environment files. Client creation is blocked with a setup message when this number is missing or invalid, rather than producing a broken invitation.
+
+Apply the `20261127120000_client_invitations` migration with `pnpm db:migrate` and regenerate Prisma with `pnpm db:generate` before running this version. Existing clients remain registered; their next incoming message establishes the tracked reply window. Previously sent welcomes are not resent. The dashboard distinguishes connection from welcome delivery, supports copying invitations again, and only offers welcome retries within the reply window. Use **Refresh status** after a client connects.
+
+Webhook handling deduplicates individual messages across batches and allows failed work to retry. Atomic welcome claims prevent simultaneous messages from triggering multiple welcomes. A send interrupted before its outcome is recorded can be retried after two minutes; because Meta's send API and the database cannot commit atomically, an ambiguous send timeout or process crash can still lead to a duplicate on retry.
 
 Use `localhost:3000` for the dashboard during this setup. If you instead browse the app through the tunnel, adjust authentication origins and OAuth redirect configuration accordingly.
 
@@ -284,7 +288,7 @@ There is no separate compiled worker build script; production execution currentl
 | WhatsApp says a file is unprocessable | Inspect worker logs. The hard-coded validation model must be available; validation API errors currently return a negative result. |
 | Extraction fails | Check `GOOGLE_GENERATIVE_AI_API_KEY`, `EXTRACT_MODEL`, model access, quotas, and document format. |
 | A sender's bills are ignored | Register the sender's Indian WhatsApp number under a client and verify the Meta test-number restrictions. |
-| Welcome message fails | Check the token, phone number ID, approved template name/language, and permission to contact the recipient. |
+| Welcome message fails | Ask the client to message the bot from their registered number, refresh the client list, and retry within 24 hours. Check the token and phone number ID in server logs. |
 | Tally export is rejected | Select one client and supply valid ledger names; required invoice details and tax totals must be reviewed and consistent. |
 
 Recovery sweep logic exists in `apps/worker/src/jobs/sweep.ts`, but the maintenance consumer and recurring scheduler are currently commented out in the worker entry point. Do not assume stuck bills are automatically re-enqueued after an outage. The webhook acknowledgment and worker queue are not one atomic transaction, so review processing failures after connectivity incidents.

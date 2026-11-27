@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "test:onboarding": "tsx --test test/onboarding.test.ts",
     "generate": "prisma generate",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit"

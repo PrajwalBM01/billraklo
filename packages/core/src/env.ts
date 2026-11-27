@@ -18,12 +18,13 @@ const envSchema = z.object({
   VERIFY_TOKEN: z.string().min(1, "VERIFY_TOKEN is required"),
   WHATSAPP_TOKEN: z.string().min(1, "WHATSAPP_TOKEN is required"),
   PHONE_NUMBER_ID: z.string().min(1, "PHONE_NUMBER_ID is required"),
+  // Public number used in invitations; distinct from Meta's PHONE_NUMBER_ID.
+  WHATSAPP_BOT_NUMBER: z.string().default(""),
   GRAPH_API_VERSION: z.string().min(1, "GRAPH_API_VERSION is required"),
   APP_SECRET: z.string().min(1, "APP_SECRET is required"),
   WABA_ID: z.string().min(1, "WABA_ID is required"),
 
-  // Approved template used to message a client first (free text only works
-  // within 24 hours of the client messaging us).
+  // Legacy template helper settings. Invitation onboarding does not use templates.
   WHATSAPP_WELCOME_TEMPLATE: z.string().min(1).default("client_welcome"),
   WHATSAPP_WELCOME_TEMPLATE_LANG: z.string().min(1).default("en"),
 

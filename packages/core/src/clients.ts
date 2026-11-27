@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { Prisma } from "../generated/prisma/client";
 import { prisma } from "./db";
+import { env } from "./env";
+import { buildWhatsAppInvitation, CUSTOMER_SERVICE_WINDOW_MS, isCustomerServiceWindowOpen } from "./whatsapp-session";
 import { normalizeIndianMobile } from "./phone";
 import { describeWhatsAppError, sendTextMessage, type WhatsAppSendResult } from "./whatsapp";
 import { isPrismaError } from "./prisma-error";
@@ -32,6 +33,10 @@ const clientInputSchema = z.object({
 export type ClientInput = z.infer<typeof clientInputSchema>;
 export type ClientField = keyof ClientInput;
 
+export function getClientInvitationUrl() {
+  return buildWhatsAppInvitation(env.WHATSAPP_BOT_NUMBER);
+}
+
 export function parseClientInput(input: Record<ClientField, unknown>) {
   const result = clientInputSchema.safeParse({
     legalName: String(input.legalName ?? ""),
@@ -47,8 +52,8 @@ export function parseClientInput(input: Record<ClientField, unknown>) {
   return { success: false as const, fieldErrors };
 }
 
-export function listClients(userId: string) {
-  return prisma.client.findMany({
+export async function listClients(userId: string) {
+  const clients = await prisma.client.findMany({
     where: { userId },
     orderBy: { createdAt: "desc" },
     select: {
@@ -59,9 +64,20 @@ export function listClients(userId: string) {
       createdAt: true,
       // welcomeError stays server-side: it's for debugging, not for users.
       welcomeStatus: true,
+      connectedAt: true,
+      lastInboundAt: true,
+      welcomeAttemptAt: true,
       _count: { select: { bills: true } },
     },
   });
+  const now = Date.now();
+  return clients.map((client) => ({
+    ...client,
+    canRetryWelcome: isCustomerServiceWindowOpen(client.lastInboundAt, now) && (
+      client.welcomeStatus === "failed" || client.welcomeStatus === "pending" ||
+      (client.welcomeStatus === "sending" && client.welcomeAttemptAt !== null && client.welcomeAttemptAt.getTime() < now - 120_000)
+    ),
+  }));
 }
 
 /** Saves a client. `whatsappPhone` is unique across all users, so a number can only belong to one. */
@@ -103,12 +119,29 @@ export async function removeClient(userId: string, clientId: string) {
 /**
  * Sends the welcome text to a client and records the outcome on the client row.
  * WhatsApp requires the client to have messaged us within the last 24 hours.
- * Never throws, so the caller can always report what happened.
+ * Atomically claims the welcome so simultaneous messages don't send it twice.
+ * Database failures propagate so the webhook can be retried.
  */
 export async function sendClientWelcome(
   client: { id: string; whatsappPhone: string },
   addedBy: string,
-): Promise<WhatsAppSendResult> {
+): Promise<WhatsAppSendResult | { ok: true; skipped: true }> {
+  const attemptAt = new Date();
+  const claimed = await prisma.client.updateMany({
+    where: {
+      id: client.id,
+      whatsappPhone: client.whatsappPhone,
+      lastInboundAt: { gt: new Date(attemptAt.getTime() - CUSTOMER_SERVICE_WINDOW_MS), lte: attemptAt },
+      OR: [
+        { welcomeStatus: { in: ["pending", "failed"] } },
+        // Recover a process that died while sending. The send itself times out in 10s.
+        { welcomeStatus: "sending", welcomeAttemptAt: { lt: new Date(attemptAt.getTime() - 120_000) } },
+      ],
+    },
+    data: { welcomeStatus: "sending", welcomeAttemptAt: attemptAt, welcomeError: null },
+  });
+  if (claimed.count === 0) return { ok: true, skipped: true };
+
   const result = await sendTextMessage(
     client.whatsappPhone,
     `*Welcome to Billraklo!*\nYour Billraklo personal assistant account was added by ${addedBy}.\n\nYou may now submit your bills or invoices for automated processing.`,
@@ -119,15 +152,16 @@ export async function sendClientWelcome(
   }
 
   try {
-    await prisma.client.update({
-      where: { id: client.id },
+    await prisma.client.updateMany({
+      where: { id: client.id, welcomeStatus: "sending", welcomeAttemptAt: attemptAt },
       data: result.ok
         ? { welcomeStatus: "sent", welcomeMessageId: result.messageId, welcomeError: null, welcomeSentAt: new Date() }
         : { welcomeStatus: "failed", welcomeError: withCode(result.reason, result.code) },
     });
   } catch (error) {
-    // The message outcome is still returned; only the stored status is stale.
+    // Leave the claim intact so a concurrent retry cannot immediately resend.
     console.error(`Couldn't record welcome status for client ${client.id}:`, error);
+    throw error;
   }
   return result;
 }
@@ -136,17 +170,22 @@ export async function sendClientWelcome(
 export async function retryClientWelcome(userId: string, clientId: string, addedBy: string) {
   const client = await prisma.client.findFirst({
     where: { id: clientId, userId },
-    select: { id: true, whatsappPhone: true, welcomeStatus: true },
+    select: { id: true, whatsappPhone: true, welcomeStatus: true, lastInboundAt: true, welcomeAttemptAt: true },
   });
   if (!client) return { ok: false as const, reason: "not-found" as const };
-  if (client.welcomeStatus !== "pending" && client.welcomeStatus !== "failed") {
+  if (!isCustomerServiceWindowOpen(client.lastInboundAt)) {
+    return { ok: false as const, reason: "window-closed" as const };
+  }
+  const staleAttempt = client.welcomeStatus === "sending" && client.welcomeAttemptAt &&
+    client.welcomeAttemptAt.getTime() < Date.now() - 120_000;
+  if (client.welcomeStatus !== "pending" && client.welcomeStatus !== "failed" && !staleAttempt) {
     return { ok: false as const, reason: "already-sent" as const };
   }
   return { ok: true as const, result: await sendClientWelcome(client, addedBy) };
 }
 
 // Status webhooks can arrive out of order (e.g. "read" before "delivered").
-const statusRank: Record<string, number> = { pending: 0, sent: 1, delivered: 2, read: 3 };
+const statusRank: Record<string, number> = { pending: 0, sending: 0, failed: 0, sent: 1, delivered: 2, read: 3 };
 
 /**
  * Applies a WhatsApp status webhook to the client whose welcome it belongs to.
@@ -164,10 +203,11 @@ export async function recordWelcomeStatus(
   if (!client) return false;
 
   if (status === "failed") {
+    if (client.welcomeStatus === "delivered" || client.welcomeStatus === "read") return true;
     const reason = withCode(describeWhatsAppError(error?.code, error?.details), error?.code);
     console.error(`[whatsapp] Welcome to client ${client.id} failed after sending: ${reason}`);
-    await prisma.client.update({
-      where: { id: client.id },
+    await prisma.client.updateMany({
+      where: { id: client.id, welcomeMessageId: messageId, welcomeStatus: client.welcomeStatus },
       data: { welcomeStatus: "failed", welcomeError: reason },
     });
     return true;
@@ -176,7 +216,10 @@ export async function recordWelcomeStatus(
   const next = statusRank[status];
   const current = statusRank[client.welcomeStatus];
   if (next !== undefined && current !== undefined && next > current) {
-    await prisma.client.update({ where: { id: client.id }, data: { welcomeStatus: status } });
+    await prisma.client.updateMany({
+      where: { id: client.id, welcomeMessageId: messageId, welcomeStatus: client.welcomeStatus },
+      data: { welcomeStatus: status },
+    });
   }
   return true;
 }
