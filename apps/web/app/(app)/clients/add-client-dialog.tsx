@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { useResetOnHide } from "@/hooks/use-reset-on-hide";
 import { addClientAction, type AddClientResult } from "./actions";
+import { InvitationDetails } from "./invitation";
 
 type Values = { legalName: string; gstin: string; whatsappPhone: string };
 type FieldErrors = Extract<AddClientResult, { ok: false }>["fieldErrors"];
@@ -30,11 +31,13 @@ export function AddClientDialog() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [added, setAdded] = useState<Extract<AddClientResult, { ok: true }> | null>(null);
 
   function reset() {
     setValues(emptyValues);
     setFieldErrors({});
     setError(null);
+    setAdded(null);
   }
 
   // Close and clear the dialog if the user navigates away with it open.
@@ -79,15 +82,8 @@ export function AddClientDialog() {
         return;
       }
 
-      setOpen(false);
-      reset();
-      if (result.welcomeSent) {
-        toast.success(`${result.legalName} added. Welcome message sent on WhatsApp.`);
-      } else {
-        toast.warning(`${result.legalName} added, but we couldn't send the welcome message.`, {
-          description: "You can retry from the list.",
-        });
-      }
+      setAdded(result);
+      toast.success(`${result.legalName} added. Share their invitation to connect WhatsApp.`);
     });
   }
 
@@ -99,79 +95,81 @@ export function AddClientDialog() {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add a client</DialogTitle>
+          <DialogTitle>{added ? `${added.legalName} added` : "Add a client"}</DialogTitle>
           <DialogDescription>
-            We&apos;ll send them a WhatsApp message saying you added them, so they can start forwarding bills.
+            {added ? "Waiting for your client to message Billraklo." : "Add their details, then share an invitation so they can connect to Billraklo on WhatsApp."}
           </DialogDescription>
         </DialogHeader>
 
-        <form id="add-client" onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-          <Field data-invalid={!!fieldErrors?.legalName || undefined}>
-            <FieldLabel htmlFor="legalName">Legal name</FieldLabel>
-            <Input
-              id="legalName"
-              value={values.legalName}
-              onChange={(e) => update("legalName", e.target.value)}
-              placeholder="Sharma Traders Pvt Ltd"
-              aria-invalid={!!fieldErrors?.legalName || undefined}
-              autoComplete="organization"
-              autoFocus
-            />
-            {fieldErrors?.legalName && <FieldError>{fieldErrors.legalName}</FieldError>}
-          </Field>
-
-          <Field data-invalid={!!fieldErrors?.gstin || undefined}>
-            <FieldLabel htmlFor="gstin">GSTIN</FieldLabel>
-            <Input
-              id="gstin"
-              value={values.gstin}
-              onChange={(e) => update("gstin", e.target.value.toUpperCase().replace(/\s/g, ""))}
-              placeholder="29ABCDE1234F1Z5"
-              maxLength={15}
-              autoCapitalize="characters"
-              spellCheck={false}
-              className="font-mono uppercase"
-              aria-invalid={!!fieldErrors?.gstin || undefined}
-            />
-            {fieldErrors?.gstin && <FieldError>{fieldErrors.gstin}</FieldError>}
-          </Field>
-
-          <Field data-invalid={!!fieldErrors?.whatsappPhone || undefined}>
-            <FieldLabel htmlFor="whatsappPhone">WhatsApp number</FieldLabel>
-            <div className="flex">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
-                +91
-              </span>
+        {added ? <InvitationDetails phone={added.phone} url={added.invitationUrl} /> : (
+          <form id="add-client" onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+            <Field data-invalid={!!fieldErrors?.legalName || undefined}>
+              <FieldLabel htmlFor="legalName">Legal name</FieldLabel>
               <Input
-                id="whatsappPhone"
-                type="tel"
-                inputMode="numeric"
-                value={values.whatsappPhone}
-                onChange={(e) => updatePhone(e.target.value)}
-                placeholder="98765 43210"
-                autoComplete="tel-national"
-                className="rounded-l-none"
-                aria-invalid={!!fieldErrors?.whatsappPhone || undefined}
+                id="legalName"
+                value={values.legalName}
+                onChange={(e) => update("legalName", e.target.value)}
+                placeholder="Sharma Traders Pvt Ltd"
+                aria-invalid={!!fieldErrors?.legalName || undefined}
+                autoComplete="organization"
+                autoFocus
               />
-            </div>
-            {fieldErrors?.whatsappPhone ? (
-              <FieldError>{fieldErrors.whatsappPhone}</FieldError>
-            ) : (
-              <FieldDescription>10-digit Indian mobile number on WhatsApp.</FieldDescription>
-            )}
-          </Field>
+              {fieldErrors?.legalName && <FieldError>{fieldErrors.legalName}</FieldError>}
+            </Field>
 
-          {error && <FieldError>{error}</FieldError>}
-        </form>
+            <Field data-invalid={!!fieldErrors?.gstin || undefined}>
+              <FieldLabel htmlFor="gstin">GSTIN</FieldLabel>
+              <Input
+                id="gstin"
+                value={values.gstin}
+                onChange={(e) => update("gstin", e.target.value.toUpperCase().replace(/\s/g, ""))}
+                placeholder="29ABCDE1234F1Z5"
+                maxLength={15}
+                autoCapitalize="characters"
+                spellCheck={false}
+                className="font-mono uppercase"
+                aria-invalid={!!fieldErrors?.gstin || undefined}
+              />
+              {fieldErrors?.gstin && <FieldError>{fieldErrors.gstin}</FieldError>}
+            </Field>
+
+            <Field data-invalid={!!fieldErrors?.whatsappPhone || undefined}>
+              <FieldLabel htmlFor="whatsappPhone">WhatsApp number</FieldLabel>
+              <div className="flex">
+                <span className="inline-flex items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm text-muted-foreground">
+                  +91
+                </span>
+                <Input
+                  id="whatsappPhone"
+                  type="tel"
+                  inputMode="numeric"
+                  value={values.whatsappPhone}
+                  onChange={(e) => updatePhone(e.target.value)}
+                  placeholder="98765 43210"
+                  autoComplete="tel-national"
+                  className="rounded-l-none"
+                  aria-invalid={!!fieldErrors?.whatsappPhone || undefined}
+                />
+              </div>
+              {fieldErrors?.whatsappPhone ? (
+                <FieldError>{fieldErrors.whatsappPhone}</FieldError>
+              ) : (
+                <FieldDescription>10-digit Indian mobile number on WhatsApp.</FieldDescription>
+              )}
+            </Field>
+
+            {error && <FieldError>{error}</FieldError>}
+          </form>
+        )}
 
         <DialogFooter>
           <Button type="button" variant="outline" disabled={pending} onClick={() => handleOpenChange(false)}>
-            Cancel
+            {added ? "Done" : "Cancel"}
           </Button>
-          <Button type="submit" form="add-client" disabled={pending}>
+          {!added && <Button type="submit" form="add-client" disabled={pending}>
             {pending && <Spinner />}
             {pending ? "Adding…" : "Add client"}
-          </Button>
+          </Button>}
         </DialogFooter>
       </DialogContent>
     </Dialog>

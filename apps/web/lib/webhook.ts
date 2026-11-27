@@ -1,156 +1,112 @@
-import {
-  getBillQueue,
-  isUniqueViolation,
-  prisma,
-  sendText,
-} from "@billraklo/core";
+import { isUniqueViolation, normalizeIndianMobile, prisma, sendClientWelcome, sendText } from "@billraklo/core";
 import crypto from "node:crypto";
-import {
-  WhatsAppIncomingMessage,
-  WhatsAppWebhookPayload,
-} from "./webhook-types";
+import type { WhatsAppIncomingMessage } from "./webhook-types";
 
-export async function verfiyMetaSignature(
-  rawBody: Buffer<ArrayBuffer>,
-  header: string,
-  secret: string,
-) {
-  //check header
+export async function verfiyMetaSignature(rawBody: Buffer, header: string, secret: string) {
   if (!header?.startsWith("sha256=")) return false;
-
-  //recompute the signature
-  const expected =
-    "sha256=" +
-    crypto
-      .createHmac("sha256", secret)
-      .update(rawBody || "")
-      .digest("hex");
-
-  //compare both the recived and genrated signature
+  const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
   const a = Buffer.from(header);
   const b = Buffer.from(expected);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-async function isPhNoAllowed(number: string) {
-  if (!number) return false;
-
-  const existing = await prisma.client.findUnique({
-    where: { whatsappPhone: number },
-  });
-
-  if (existing) {
-    return existing;
-  } else {
-    return false;
+/** Claim each message separately; retries must not skip the rest of a batch. */
+async function claimMessage(id: string) {
+  const now = new Date();
+  try {
+    await prisma.waMessage.create({ data: { id, processingStartedAt: now } });
+    return true;
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
   }
+  const message = await prisma.waMessage.findUnique({ where: { id } });
+  if (message?.processedAt) return false;
+  const claimed = await prisma.waMessage.updateMany({
+    where: {
+      id,
+      processedAt: null,
+      OR: [
+        { processingStartedAt: null },
+        { processingStartedAt: { lt: new Date(now.getTime() - 120_000) } },
+      ],
+    },
+    data: { processingStartedAt: now },
+  });
+  // Ask Meta to retry instead of acknowledging a message still being handled.
+  if (!claimed.count) throw new Error("WhatsApp message is still being processed");
+  return true;
 }
 
-export async function isMessageProcessed(body: WhatsAppWebhookPayload) {
-  let processed = false;
-  for (const change of body.entry[0].changes ?? []) {
-    if (change.field == "messages") {
-      let id: string | undefined;
-      if (change.value.messages) {
-        id = change.value.messages[0]?.id;
-      }
+async function handleMessage(message: WhatsAppIncomingMessage) {
+  const phone = normalizeIndianMobile(message.from);
+  if (!phone) return;
+  const client = await prisma.client.findUnique({
+    where: { whatsappPhone: phone },
+    include: { user: { select: { name: true } } },
+  });
+  // The actual sender must be registered. An invitation link grants no access.
+  if (!client) return;
 
-      if (change.value.statuses) {
-        const status = change.value.statuses[0];
-        id = `${status.id}_${status.status}_${status.timestamp}`;
-      }
+  const timestamp = Number(message.timestamp) * 1000;
+  if (!Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now() + 60_000) return;
+  const incomingAt = new Date(Math.min(timestamp, Date.now()));
+  // Use Meta's timestamp, not delivery time; delayed/reordered webhooks must not
+  // reopen or shorten the customer-service window.
+  await prisma.client.updateMany({
+    where: { id: client.id, OR: [{ lastInboundAt: null }, { lastInboundAt: { lt: incomingAt } }] },
+    data: { lastInboundAt: incomingAt },
+  });
+  await prisma.client.updateMany({
+    where: { id: client.id, connectedAt: null },
+    data: { connectedAt: incomingAt },
+  });
 
-      if (!id) {
-        continue;
-      }
+  const welcome = await sendClientWelcome(client, client.user.name);
+  const mediaInfo = "image" in message
+    ? message.image
+    : "document" in message && message.document.mime_type === "application/pdf"
+      ? message.document
+      : undefined;
 
-      try {
-        await prisma.waMessage.create({
-          data: {
-            id: id,
-          },
-        });
-      } catch (error: any) {
-        if (isUniqueViolation(error)) {
-          console.log("duplicate webhook", id);
-          processed = true;
-          continue;
-        }
-        throw error;
-      }
+  if (!mediaInfo) {
+    // The welcome already explains uploads. Don't answer the first Hi twice.
+    if (welcome.ok && "skipped" in welcome && client.connectedAt) {
+      await sendText(phone, "Please send an image or PDF invoice to process your bills.");
     }
+    return;
   }
-  return processed;
+
+  // A first invoice also connects the client and is processed immediately.
+  // Reuse the bill after a queue failure; the message claim serializes retries.
+  const existing = await prisma.bill.findFirst({ where: { waMsgId: message.id, clientId: client.id } });
+  const bill = existing ?? await prisma.bill.create({
+    data: { waMsgId: message.id, clientId: client.id, mimeType: mediaInfo.mime_type, waMediaId: mediaInfo.id },
+  });
+  if (bill.status === "received") {
+    const response = await fetch(`${process.env.WORKER_API_URL}/api/internal/queue/bills`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": process.env.WORKER_API_SECRET! },
+      body: JSON.stringify({ billId: bill.id, action: "process" }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error(`Couldn't queue WhatsApp bill (HTTP ${response.status})`);
+  }
+  await sendText(phone, "Received ✅ Reading your bill…");
 }
 
 export async function handleMessages(messages: WhatsAppIncomingMessage[]) {
   for (const message of messages) {
-    //check phone number is registred as client and is allowed
-    const client = await isPhNoAllowed(message.from);
-    if (!client) {
-      console.error("Phone number is not allowed", message.from);
-      continue;
-    }
-
-    //message is not image or doc, send not allowed
-    const mediaInfo =
-      "image" in message
-        ? message.image
-        : "document" in message &&
-            message.document.mime_type === "application/pdf"
-          ? message.document
-          : undefined;
-
-    if (!mediaInfo) {
-      // text, sticker, audio, non-PDF document, anything else →
-      await sendText(message.from, "Please send only Image or PDF invoices.");
-      continue;
-    }
-
-    //store half bill in bill table and add to queue
+    if (!(await claimMessage(message.id))) continue;
     try {
-      const bill = await prisma.bill.create({
-        data: {
-          waMsgId: message.id,
-          clientId: client.id,
-          mimeType: mediaInfo.mime_type,
-          waMediaId: mediaInfo.id,
-        },
+      await handleMessage(message);
+      await prisma.waMessage.update({
+        where: { id: message.id },
+        data: { processedAt: new Date(), processingStartedAt: null },
       });
-
-      // await getBillQueue().add(
-      //   "process",
-      //   { billId: bill.id },
-      //   { jobId: bill.id },
-      // );
-
-      const res = await fetch(
-        `${process.env.WORKER_API_URL}/api/internal/queue/bills`,
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-            "x-api-key": process.env.WORKER_API_SECRET!,
-          },
-          body: JSON.stringify({
-            billId: bill.id,
-            action: "process",
-          }),
-          cache: "no-store",
-        },
-      );
-
-      if (!res.ok) {
-        console.error(
-          "Couldn't register bill job",
-          res.status,
-          await res.text(),
-        );
-      }
-
-      await sendText(message.from, "Received ✅ Reading your bill…");
     } catch (error) {
-      console.error("Couldn't process message:", error);
+      await prisma.waMessage.update({ where: { id: message.id }, data: { processingStartedAt: null } });
+      throw error;
     }
   }
 }

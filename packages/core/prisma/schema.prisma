@@ -24,11 +24,15 @@ model Client {
   createdAt     DateTime @default(now())
   bills         Bill[]
 
-  // WhatsApp welcome message: pending | sent | delivered | read | failed
+  connectedAt     DateTime?
+  lastInboundAt   DateTime?
+
+  // WhatsApp welcome message: pending | sending | sent | delivered | read | failed
   welcomeStatus    String    @default("pending")
   welcomeMessageId String?   @unique
   welcomeError     String?
   welcomeSentAt    DateTime?
+  welcomeAttemptAt DateTime?
 
   @@index([userId])
 }
@@ -92,6 +96,8 @@ model InvoiceLine {
 model WaMessage {
   id String @id @unique
   receviedAt DateTime @default(now())
+  processingStartedAt DateTime?
+  processedAt DateTime?
 }
 
 model User {

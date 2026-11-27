@@ -12,6 +12,7 @@ export {
   type WhatsAppSendResult,
 } from "./whatsapp";
 export { normalizeIndianMobile, formatIndianMobile } from "./phone";
+export { buildWhatsAppInvitation, isCustomerServiceWindowOpen } from "./whatsapp-session";
 export {
   parseClientInput,
   listClients,
@@ -20,6 +21,7 @@ export {
   sendClientWelcome,
   retryClientWelcome,
   recordWelcomeStatus,
+  getClientInvitationUrl,
   type ClientInput,
   type ClientField,
 } from "./clients";

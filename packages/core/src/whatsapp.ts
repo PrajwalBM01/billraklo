@@ -1,5 +1,7 @@
 import { env } from "./env";
 import z from "zod";
+import { prisma } from "./db";
+import { isCustomerServiceWindowOpen } from "./whatsapp-session";
 
 const FileDownloadSchema = z.object({
   id: z.string(),
@@ -11,8 +13,12 @@ const FileDownloadSchema = z.object({
 const baseURL = `https://graph.facebook.com/${env.GRAPH_API_VERSION}/${env.PHONE_NUMBER_ID}/messages`;
 
 export async function sendText(to: string, body: string, context?: string) {
+  // A delayed job must not attempt free-form delivery after the client's window
+  // closes. Keep the bill result in the dashboard; never fall back to a template.
+  if (!(await canSendText(to))) return;
   const response = await fetch(baseURL, {
     method: "POST",
+    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
       "Content-Type": "application/json",
@@ -143,6 +149,14 @@ export type WhatsAppSendResult =
 
 const SEND_TIMEOUT_MS = 10_000;
 
+async function canSendText(to: string) {
+  const client = await prisma.client.findUnique({
+    where: { whatsappPhone: to },
+    select: { lastInboundAt: true },
+  });
+  return isCustomerServiceWindowOpen(client?.lastInboundAt ?? null);
+}
+
 // The parts of the Graph API's /messages response we read.
 type GraphSendResponse = {
   messages?: { id: string }[];
@@ -161,6 +175,9 @@ export async function sendTextMessage(
   to: string,
   body: string,
 ): Promise<WhatsAppSendResult> {
+  if (!(await canSendText(to))) {
+    return { ok: false, code: 131047, reason: "Ask the client to message Billraklo again before sending the welcome." };
+  }
   let response: Response;
   try {
     response = await fetch(baseURL, {
